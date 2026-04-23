@@ -42,6 +42,7 @@ export const reportsApi = {
   create: (input: NewReportInput) => invoke<Report>("create_report", { input }),
   update: (input: UpdateReportInput) => invoke<Report>("update_report", { input }),
   archive: (id: number) => invoke<void>("archive_report", { id }),
+  delete: (id: number) => invoke<void>("delete_report", { id }),
 };
 
 export const weekRatingsApi = {

@@ -49,7 +49,7 @@ watch(reportId, async (id) => {
   <div class="timeline" v-if="report">
     <header class="head">
       <div>
-        <button class="back" @click="router.push('/reports')">← Reports</button>
+        <button class="back" @click="router.push('/reports')">← Team members</button>
         <h2>{{ report.name }}</h2>
         <p class="sub">
           {{ report.role ?? "—" }} ·

@@ -44,9 +44,14 @@ export const useReportsStore = defineStore("reports", () => {
     items.value = items.value.map((r) => (r.id === id ? { ...r, active: false } : r));
   }
 
+  async function remove(id: number) {
+    await reportsApi.delete(id);
+    items.value = items.value.filter((r) => r.id !== id);
+  }
+
   function byId(id: number): Report | undefined {
     return items.value.find((r) => r.id === id);
   }
 
-  return { items, active, loaded, loading, lastError, load, create, update, archive, byId };
+  return { items, active, loaded, loading, lastError, load, create, update, archive, remove, byId };
 });

@@ -24,6 +24,7 @@ pub fn run() {
             commands::create_report,
             commands::update_report,
             commands::archive_report,
+            commands::delete_report,
             commands::list_week_ratings_by_week,
             commands::list_week_ratings_by_report,
             commands::list_week_ratings_team_overall,

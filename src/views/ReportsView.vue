@@ -20,26 +20,38 @@ onMounted(() => {
 function openTimeline(id: number) {
   router.push({ name: "report-timeline", params: { id: String(id) } });
 }
+
+async function archiveMember(id: number, name: string, ev: Event) {
+  ev.stopPropagation();
+  if (!confirm(`Archive ${name}? They'll be hidden from the capture grid but their history is preserved.`)) return;
+  await reports.archive(id);
+}
+
+async function deleteMember(id: number, name: string, ev: Event) {
+  ev.stopPropagation();
+  if (!confirm(`Permanently delete ${name} and all their ratings, 1:1 notes, and reviews? This cannot be undone.`)) return;
+  await reports.remove(id);
+}
 </script>
 
 <template>
   <div class="reports-view">
     <header class="page-head">
-      <h2>Reports</h2>
+      <h2>Team members</h2>
       <div class="actions">
         <label class="archived-toggle">
           <input v-model="showArchived" type="checkbox" />
           <span>Show archived</span>
         </label>
-        <button class="primary" @click="showAdd = true">+ Add report</button>
+        <button class="primary" @click="showAdd = true">+ Add team member</button>
       </div>
     </header>
 
     <div v-if="reports.loading && !reports.loaded" class="empty">Loading…</div>
 
     <div v-else-if="visible.length === 0" class="empty">
-      <p>No reports yet.</p>
-      <button class="primary" @click="showAdd = true">Add your first report</button>
+      <p>No team members yet.</p>
+      <button class="primary" @click="showAdd = true">Add your first team member</button>
     </div>
 
     <table v-else class="list">
@@ -49,6 +61,7 @@ function openTimeline(id: number) {
           <th>Role</th>
           <th>Cadence</th>
           <th>Started</th>
+          <th></th>
           <th></th>
         </tr>
       </thead>
@@ -65,6 +78,19 @@ function openTimeline(id: number) {
           <td>{{ r.startDate ?? "—" }}</td>
           <td class="status">
             <span v-if="!r.active" class="badge">archived</span>
+          </td>
+          <td class="row-actions">
+            <button
+              v-if="r.active"
+              class="icon-btn"
+              title="Archive (hide, keep history)"
+              @click="archiveMember(r.id, r.name, $event)"
+            >📦</button>
+            <button
+              class="icon-btn danger"
+              title="Delete permanently"
+              @click="deleteMember(r.id, r.name, $event)"
+            >🗑</button>
           </td>
         </tr>
       </tbody>
@@ -101,4 +127,12 @@ h2 { margin: 0; font-size: 20px; }
   background: #374151; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
 }
 .status { text-align: right; }
+.row-actions { text-align: right; white-space: nowrap; width: 72px; }
+.icon-btn {
+  background: none; border: 1px solid var(--border); color: var(--text-dim);
+  width: 28px; height: 28px; border-radius: 4px; cursor: pointer;
+  font-size: 13px; margin-left: 4px; padding: 0;
+}
+.icon-btn:hover { color: var(--text); background: var(--surface-2); }
+.icon-btn.danger:hover { color: #f87171; border-color: #b91c1c; }
 </style>

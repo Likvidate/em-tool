@@ -130,6 +130,11 @@ pub fn archive_report(state: State<AppState>, id: i64) -> Result<(), CommandErro
     db::with_conn(&state, |c| reports::archive(c, id)).map_err(Into::into)
 }
 
+#[tauri::command]
+pub fn delete_report(state: State<AppState>, id: i64) -> Result<(), CommandError> {
+    db::with_conn(&state, |c| reports::delete(c, id)).map_err(Into::into)
+}
+
 // --- Week ratings ---
 
 #[tauri::command]

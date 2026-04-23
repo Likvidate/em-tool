@@ -109,6 +109,16 @@ pub fn archive(conn: &Connection, id: i64) -> rusqlite::Result<()> {
     Ok(())
 }
 
+/// Hard delete — removes the report row. FK `ON DELETE CASCADE` on
+/// week_rating, one_on_one, action_item, performance_review, generated_plan
+/// automatically removes their related rows.
+pub fn delete(conn: &Connection, id: i64) -> rusqlite::Result<()> {
+    // FK cascades require PRAGMA foreign_keys = ON per connection.
+    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+    conn.execute("DELETE FROM report WHERE id = ?1", [id])?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -7,7 +7,7 @@ const reports = useReportsStore();
 
 const name = ref("");
 const role = ref("");
-const startDate = ref(new Date().toISOString().slice(0, 10));
+const startDate = ref("");
 const cadence = ref(14);
 const notes = ref("");
 const submitting = ref(false);
@@ -41,7 +41,7 @@ async function submit() {
   <div class="backdrop" @click.self="emit('close')">
     <div class="modal">
       <header>
-        <h3>Add a report</h3>
+        <h3>Add a team member</h3>
         <button class="close" @click="emit('close')">✕</button>
       </header>
 
@@ -57,12 +57,17 @@ async function submit() {
             <input v-model="startDate" type="date" />
           </label>
         </div>
-        <label><span>1:1 cadence (days)</span>
+        <label><span>1:1 cadence</span>
           <select v-model.number="cadence">
             <option :value="7">Weekly</option>
-            <option :value="14">Bi-weekly</option>
+            <option :value="14">Bi-weekly (every 2 weeks)</option>
             <option :value="21">Every 3 weeks</option>
             <option :value="30">Monthly</option>
+            <option :value="45">Every 6 weeks</option>
+            <option :value="60">Every 2 months</option>
+            <option :value="90">Quarterly (every 3 months)</option>
+            <option :value="120">Every 4 months</option>
+            <option :value="180">Every 6 months</option>
           </select>
         </label>
         <label><span>Notes</span>
@@ -74,7 +79,7 @@ async function submit() {
         <footer>
           <button type="button" class="secondary" @click="emit('close')">Cancel</button>
           <button type="submit" class="primary" :disabled="!canSubmit">
-            {{ submitting ? "Adding…" : "Add report" }}
+            {{ submitting ? "Adding…" : "Add team member" }}
           </button>
         </footer>
       </form>
