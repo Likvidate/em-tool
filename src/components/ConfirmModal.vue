@@ -55,14 +55,22 @@ defineEmits<{ confirm: []; cancel: [] }>();
   color: #9ca3af;
   margin-bottom: 12px;
 }
-.modal.danger .icon { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+.modal.danger .icon { background: rgba(239, 68, 68, 0.08); color: #b06060; }
 h3 { margin: 0 0 6px; font-size: 16px; }
 p { margin: 0 0 18px; font-size: 13px; line-height: 1.55; color: var(--text-dim); }
 footer { display: flex; justify-content: flex-end; gap: 8px; }
-button { padding: 7px 14px; border: none; border-radius: 5px; font-size: 13px; cursor: pointer; font-family: inherit; }
+button { padding: 7px 14px; border: 1px solid transparent; border-radius: 5px; font-size: 13px; cursor: pointer; font-family: inherit; }
 .primary { background: var(--accent); color: #fff; }
-.danger { background: #dc2626; color: #fff; }
-.danger:hover { background: #b91c1c; }
+.danger {
+  background: transparent;
+  color: #e5a8a8;
+  border-color: #5a2a2a;
+}
+.danger:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: #7a3838;
+  color: #f0b8b8;
+}
 .secondary { background: #374151; color: var(--text); }
 .secondary:hover { background: #4b5563; }
 
