@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+import { useVaultStore } from "./stores/vault";
 
 const routes: RouteRecordRaw[] = [
   { path: "/", redirect: "/capture" },
@@ -11,4 +12,23 @@ const routes: RouteRecordRaw[] = [
   { path: "/settings", name: "settings", component: () => import("./views/SettingsView.vue") },
 ];
 
-export default createRouter({ history: createWebHistory(), routes });
+const router = createRouter({ history: createWebHistory(), routes });
+
+router.beforeEach(async (to) => {
+  const vault = useVaultStore();
+  if (vault.status === "loading") {
+    await vault.refresh();
+  }
+
+  if (vault.status === "needs-setup" && to.name !== "onboard") {
+    return { name: "onboard" };
+  }
+  if (vault.status === "locked" && to.name !== "unlock") {
+    return { name: "unlock" };
+  }
+  if (vault.status === "unlocked" && (to.name === "onboard" || to.name === "unlock")) {
+    return { name: "capture" };
+  }
+});
+
+export default router;
