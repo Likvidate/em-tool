@@ -9,6 +9,8 @@ mod week_ratings;
 mod one_on_ones;
 mod action_items;
 mod performance_reviews;
+mod secure_settings;
+mod plan_generation;
 
 use state::{AppState, default_db_path};
 
