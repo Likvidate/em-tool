@@ -10,7 +10,7 @@ const routes: RouteRecordRaw[] = [
   { path: "/reports/:id/timeline", name: "report-timeline",
     component: () => import("./views/ReportTimelineView.vue") },
   { path: "/heatmap", name: "heatmap", component: () => import("./views/TeamHeatmapView.vue") },
-  { path: "/plan", name: "plan", component: () => import("./views/PlanGeneratorView.vue") },
+  { path: "/plan/:reportId?", name: "plan", component: () => import("./views/PlanGeneratorView.vue") },
   { path: "/settings", name: "settings", component: () => import("./views/SettingsView.vue") },
 ];
 
