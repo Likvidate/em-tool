@@ -5,6 +5,7 @@ mod state;
 mod commands;
 mod db;
 mod reports;
+mod week_ratings;
 
 use state::{AppState, default_db_path};
 
