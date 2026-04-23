@@ -7,6 +7,8 @@ const routes: RouteRecordRaw[] = [
   { path: "/unlock", name: "unlock", component: () => import("./views/UnlockView.vue") },
   { path: "/capture", name: "capture", component: () => import("./views/WeeklyCaptureView.vue") },
   { path: "/reports", name: "reports", component: () => import("./views/ReportsView.vue") },
+  { path: "/reports/:id/timeline", name: "report-timeline",
+    component: () => import("./views/ReportTimelineView.vue") },
   { path: "/heatmap", name: "heatmap", component: () => import("./views/TeamHeatmapView.vue") },
   { path: "/plan", name: "plan", component: () => import("./views/PlanGeneratorView.vue") },
   { path: "/settings", name: "settings", component: () => import("./views/SettingsView.vue") },
