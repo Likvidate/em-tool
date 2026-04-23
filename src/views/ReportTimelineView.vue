@@ -10,6 +10,7 @@ import ColorStrip from "../components/ColorStrip.vue";
 import ActionItemList from "../components/ActionItemList.vue";
 import LogOneOnOneModal from "../components/LogOneOnOneModal.vue";
 import LogReviewModal from "../components/LogReviewModal.vue";
+import AddReportModal from "../components/AddReportModal.vue";
 import type { Color } from "../lib/colors";
 import type { WeekRating } from "../types/week-rating";
 import type { OneOnOne } from "../types/one-on-one";
@@ -34,6 +35,7 @@ const report = computed(() => reports.byId(reportId.value));
 
 const showLog1on1 = ref(false);
 const showLogReview = ref(false);
+const showEditReport = ref(false);
 const editing1on1 = ref<OneOnOne | null>(null);
 const editingReview = ref<PerformanceReview | null>(null);
 
@@ -151,6 +153,7 @@ watch(reportId, async (id) => {
           </div>
         </div>
         <div class="person-actions">
+          <button class="btn btn-ghost" title="Edit team member" @click="showEditReport = true">✎ Edit</button>
           <button class="btn btn-primary" @click="showLog1on1 = true">+ Log 1:1</button>
           <button class="btn btn-secondary" @click="showLogReview = true">+ Log review</button>
         </div>
@@ -244,6 +247,12 @@ watch(reportId, async (id) => {
       :existing="editingReview"
       @close="editingReview = null"
       @created="onCreatedReview"
+    />
+    <AddReportModal
+      v-if="showEditReport && report"
+      :existing="report"
+      @close="showEditReport = false"
+      @saved="showEditReport = false"
     />
   </div>
   <div v-else class="loading">Loading…</div>

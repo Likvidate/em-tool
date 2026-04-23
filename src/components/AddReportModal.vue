@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useReportsStore } from "../stores/reports";
+import type { Report } from "../types/report";
 
-const emit = defineEmits<{ close: []; created: [id: number] }>();
+const props = defineProps<{ existing?: Report }>();
+const emit = defineEmits<{ close: []; saved: [id: number] }>();
 const reports = useReportsStore();
+
+const isEdit = computed(() => !!props.existing);
 
 const name = ref("");
 const role = ref("");
@@ -13,6 +17,16 @@ const notes = ref("");
 const submitting = ref(false);
 const error = ref<string | null>(null);
 
+onMounted(() => {
+  if (props.existing) {
+    name.value = props.existing.name;
+    role.value = props.existing.role ?? "";
+    startDate.value = props.existing.startDate ?? "";
+    cadence.value = props.existing.oneOnOneCadenceDays;
+    notes.value = props.existing.notes ?? "";
+  }
+});
+
 const canSubmit = computed(() => name.value.trim().length > 0 && !submitting.value);
 
 async function submit() {
@@ -20,14 +34,26 @@ async function submit() {
   submitting.value = true;
   error.value = null;
   try {
-    const created = await reports.create({
-      name: name.value.trim(),
-      role: role.value.trim() || null,
-      startDate: startDate.value || null,
-      oneOnOneCadenceDays: cadence.value,
-      notes: notes.value.trim() || null,
-    });
-    emit("created", created.id);
+    if (props.existing) {
+      const updated = await reports.update({
+        id: props.existing.id,
+        name: name.value.trim(),
+        role: role.value.trim() || null,
+        startDate: startDate.value || null,
+        oneOnOneCadenceDays: cadence.value,
+        notes: notes.value.trim() || null,
+      });
+      emit("saved", updated.id);
+    } else {
+      const created = await reports.create({
+        name: name.value.trim(),
+        role: role.value.trim() || null,
+        startDate: startDate.value || null,
+        oneOnOneCadenceDays: cadence.value,
+        notes: notes.value.trim() || null,
+      });
+      emit("saved", created.id);
+    }
     emit("close");
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : String(e);
@@ -41,17 +67,17 @@ async function submit() {
   <div class="backdrop" @click.self="emit('close')">
     <div class="modal">
       <header>
-        <h3>Add a team member</h3>
+        <h3>{{ isEdit ? "Edit team member" : "Add a team member" }}</h3>
         <button class="close" @click="emit('close')">✕</button>
       </header>
 
       <form @submit.prevent="submit">
         <label><span>Name</span>
-          <input v-model="name" type="text" autofocus placeholder="e.g. Fatima Al-Sayed" />
+          <input v-model="name" type="text" autofocus placeholder="e.g. Fatima Al-Sayed" class="field-input" />
         </label>
         <div class="row">
           <label><span>Role</span>
-            <input v-model="role" type="text" placeholder="e.g. Senior Backend" />
+            <input v-model="role" type="text" placeholder="e.g. Senior Backend" class="field-input" />
           </label>
           <label><span>Start date on team <em class="optional">(optional)</em></span>
             <input
@@ -61,11 +87,12 @@ async function submit() {
               pattern="\d{4}-\d{2}-\d{2}"
               inputmode="numeric"
               maxlength="10"
+              class="field-input"
             />
           </label>
         </div>
         <label><span>1:1 cadence</span>
-          <select v-model.number="cadence">
+          <select v-model.number="cadence" class="field-input">
             <option :value="7">Weekly</option>
             <option :value="14">Bi-weekly (every 2 weeks)</option>
             <option :value="21">Every 3 weeks</option>
@@ -78,15 +105,17 @@ async function submit() {
           </select>
         </label>
         <label><span>Notes</span>
-          <textarea v-model="notes" rows="3" placeholder="Anything you want to remember..."></textarea>
+          <textarea v-model="notes" rows="3" placeholder="Anything you want to remember..." class="field-input"></textarea>
         </label>
 
         <div v-if="error" class="error">{{ error }}</div>
 
         <footer>
-          <button type="button" class="secondary" @click="emit('close')">Cancel</button>
-          <button type="submit" class="primary" :disabled="!canSubmit">
-            {{ submitting ? "Adding…" : "Add team member" }}
+          <button type="button" class="btn btn-secondary" @click="emit('close')">Cancel</button>
+          <button type="submit" class="btn btn-primary" :disabled="!canSubmit">
+            {{ submitting
+              ? (isEdit ? "Saving…" : "Adding…")
+              : (isEdit ? "Save changes" : "Add team member") }}
           </button>
         </footer>
       </form>
@@ -101,26 +130,37 @@ async function submit() {
   display: flex; align-items: center; justify-content: center; padding: 24px;
 }
 .modal {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; max-width: 520px; width: 100%;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  max-width: 520px; width: 100%;
+  box-shadow: var(--shadow-lg);
 }
-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; border-bottom: 1px solid var(--border); }
-header h3 { margin: 0; font-size: 16px; }
-.close { background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer; }
-form { display: grid; gap: 14px; padding: 18px; }
-.row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-label { display: grid; gap: 4px; font-size: 12px; color: var(--text-dim); }
-input, textarea, select {
-  background: var(--bg); border: 1px solid var(--border); color: var(--text);
-  padding: 8px 10px; border-radius: 4px; font-family: inherit; font-size: 13px;
+header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
 }
-textarea { resize: vertical; }
-.error { color: #f87171; font-size: 12px; }
-.optional { font-style: normal; opacity: 0.6; font-weight: 400; }
-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
-button { padding: 7px 14px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
-.primary { background: var(--accent); color: #fff; }
-.primary:disabled { opacity: 0.4; cursor: not-allowed; }
-.secondary { background: #374151; color: var(--text); }
+header h3 { margin: 0; font-size: var(--fs-lg); }
+.close {
+  background: none; border: none; color: var(--text-dim);
+  font-size: 16px; cursor: pointer; padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+.close:hover { color: var(--text); background: var(--surface-2); }
+form { display: grid; gap: var(--space-4); padding: var(--space-5); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+label {
+  display: grid; gap: 4px;
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-mute);
+  font-weight: 600;
+}
+label span { display: flex; align-items: center; gap: 6px; }
+textarea.field-input { resize: vertical; min-height: 70px; }
+.error { color: var(--danger); font-size: var(--fs-sm); }
+.optional { font-style: normal; opacity: 0.65; font-weight: 400; text-transform: none; letter-spacing: 0; }
+footer { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-1); }
 </style>

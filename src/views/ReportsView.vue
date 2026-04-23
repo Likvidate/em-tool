@@ -4,10 +4,12 @@ import { useRouter } from "vue-router";
 import { useReportsStore } from "../stores/reports";
 import AddReportModal from "../components/AddReportModal.vue";
 import ConfirmModal from "../components/ConfirmModal.vue";
+import type { Report } from "../types/report";
 
 const reports = useReportsStore();
 const router = useRouter();
 const showAdd = ref(false);
+const editing = ref<Report | null>(null);
 const showArchived = ref(false);
 
 type PendingAction = { kind: "archive" | "delete"; id: number; name: string };
@@ -23,6 +25,11 @@ onMounted(() => {
 
 function openTimeline(id: number) {
   router.push({ name: "report-timeline", params: { id: String(id) } });
+}
+
+function promptEdit(r: Report, ev: Event) {
+  ev.stopPropagation();
+  editing.value = r;
 }
 
 function promptArchive(id: number, name: string, ev: Event) {
@@ -95,6 +102,11 @@ async function confirmPending() {
             </td>
             <td class="row-actions">
               <button
+                class="btn btn-ghost btn-sm icon-btn"
+                title="Edit"
+                @click="promptEdit(r, $event)"
+              >✎</button>
+              <button
                 v-if="r.active"
                 class="btn btn-ghost btn-sm icon-btn"
                 title="Archive (hide, keep history)"
@@ -111,7 +123,18 @@ async function confirmPending() {
       </table>
     </div>
 
-    <AddReportModal v-if="showAdd" @close="showAdd = false" @created="(id) => openTimeline(id)" />
+    <AddReportModal
+      v-if="showAdd"
+      @close="showAdd = false"
+      @saved="(id) => openTimeline(id)"
+    />
+
+    <AddReportModal
+      v-if="editing"
+      :existing="editing"
+      @close="editing = null"
+      @saved="editing = null"
+    />
 
     <ConfirmModal
       v-if="pending?.kind === 'archive'"
@@ -159,7 +182,7 @@ async function confirmPending() {
 .data-table .name { font-weight: 600; color: var(--text); }
 
 .status { text-align: right; }
-.row-actions { text-align: right; white-space: nowrap; width: 88px; }
+.row-actions { text-align: right; white-space: nowrap; width: 120px; }
 .icon-btn {
   width: 28px;
   height: 28px;
