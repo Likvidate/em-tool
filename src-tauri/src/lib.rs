@@ -1,4 +1,5 @@
 mod kdf;
+mod vault;
 
 pub fn run() {
     tauri::Builder::default()
