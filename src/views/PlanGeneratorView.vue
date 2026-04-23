@@ -393,9 +393,9 @@ select:focus, input:focus { outline: none; border-color: var(--accent); }
 .mini-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
 .custom-range input { width: 130px; font-family: monospace; }
 
-.generate-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.claude-wrap { display: flex; flex-direction: column; gap: 3px; }
-.hint { font-size: 11px; color: var(--text-dim); font-style: italic; }
+.generate-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+.claude-wrap { display: flex; flex-direction: column; gap: 4px; }
+.hint { font-size: 11px; color: var(--text-dim); font-style: italic; padding: 0 2px; }
 
 button.primary, button.secondary {
   padding: 8px 14px;
