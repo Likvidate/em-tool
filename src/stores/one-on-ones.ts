@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { oneOnOnesApi, InvokeError } from "../lib/invoke";
-import type { OneOnOne, NewOneOnOneInput } from "../types/one-on-one";
+import type { OneOnOne, NewOneOnOneInput, UpdateOneOnOneInput } from "../types/one-on-one";
 
 export const useOneOnOnesStore = defineStore("oneOnOnes", () => {
   const byReport = ref<Record<number, OneOnOne[]>>({});
@@ -31,6 +31,21 @@ export const useOneOnOnesStore = defineStore("oneOnOnes", () => {
     return created;
   }
 
+  async function update(input: UpdateOneOnOneInput): Promise<OneOnOne> {
+    const updated = await oneOnOnesApi.update(input);
+    for (const [rid, list] of Object.entries(byReport.value)) {
+      const idx = list.findIndex((m) => m.id === updated.id);
+      if (idx !== -1) {
+        const next = [...list];
+        next[idx] = updated;
+        next.sort((a, b) => b.occurredAt - a.occurredAt);
+        byReport.value = { ...byReport.value, [Number(rid)]: next };
+        break;
+      }
+    }
+    return updated;
+  }
+
   async function remove(id: number, reportId: number) {
     await oneOnOnesApi.delete(id);
     byReport.value = {
@@ -43,5 +58,5 @@ export const useOneOnOnesStore = defineStore("oneOnOnes", () => {
     return byReport.value[reportId] ?? [];
   }
 
-  return { byReport, loading, lastError, loadForReport, create, remove, forReport };
+  return { byReport, loading, lastError, loadForReport, create, update, remove, forReport };
 });

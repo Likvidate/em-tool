@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useReviewsStore } from "../stores/reviews";
+import type { PerformanceReview } from "../types/performance-review";
 
-const props = defineProps<{ reportId: number }>();
+const props = defineProps<{ reportId: number; existing?: PerformanceReview }>();
 const emit = defineEmits<{ close: []; created: [reviewId: number] }>();
 
 const reviews = useReviewsStore();
@@ -23,12 +24,21 @@ function todayStr(): string {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
 
-const period = ref("");
-const rating = ref("");
-const whenStr = ref(todayStr());
-const strengths = ref("");
-const devAreas = ref("");
-const goals = ref("");
+function fromUnixDate(unixSecs: number): string {
+  const d = new Date(unixSecs * 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
+const isEdit = computed(() => !!props.existing);
+
+const period = ref(props.existing?.period ?? "");
+const rating = ref(props.existing?.rating ?? "");
+const whenStr = ref(props.existing ? fromUnixDate(props.existing.occurredAt) : todayStr());
+const strengths = ref(props.existing?.strengthsMd ?? "");
+const devAreas = ref(props.existing?.devAreasMd ?? "");
+const goals = ref(props.existing?.goalsMd ?? "");
+const notes = ref(props.existing?.notesMd ?? "");
 const submitting = ref(false);
 const error = ref<string | null>(null);
 
@@ -45,16 +55,33 @@ async function submit() {
 
   submitting.value = true;
   try {
-    const created = await reviews.create({
-      reportId: props.reportId,
-      period: period.value.trim(),
-      rating: rating.value.trim() || null,
-      strengthsMd: strengths.value.trim() || null,
-      devAreasMd: devAreas.value.trim() || null,
-      goalsMd: goals.value.trim() || null,
-      occurredAt,
-    });
-    emit("created", created.id);
+    let id: number;
+    if (props.existing) {
+      const updated = await reviews.update({
+        id: props.existing.id,
+        period: period.value.trim(),
+        rating: rating.value.trim() || null,
+        strengthsMd: strengths.value.trim() || null,
+        devAreasMd: devAreas.value.trim() || null,
+        goalsMd: goals.value.trim() || null,
+        notesMd: notes.value.trim() || null,
+        occurredAt,
+      });
+      id = updated.id;
+    } else {
+      const created = await reviews.create({
+        reportId: props.reportId,
+        period: period.value.trim(),
+        rating: rating.value.trim() || null,
+        strengthsMd: strengths.value.trim() || null,
+        devAreasMd: devAreas.value.trim() || null,
+        goalsMd: goals.value.trim() || null,
+        notesMd: notes.value.trim() || null,
+        occurredAt,
+      });
+      id = created.id;
+    }
+    emit("created", id);
     emit("close");
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : String(e);
@@ -68,7 +95,7 @@ async function submit() {
   <div class="backdrop" @click.self="emit('close')">
     <div class="modal">
       <header>
-        <h3>Log a performance review</h3>
+        <h3>{{ isEdit ? "Edit review" : "Log a performance review" }}</h3>
         <button class="close" @click="emit('close')">✕</button>
       </header>
 
@@ -114,12 +141,20 @@ async function submit() {
           <textarea v-model="goals" rows="3" placeholder="What to focus on next..."></textarea>
         </label>
 
+        <label><span>Post-review reflection <em class="optional">(optional)</em></span>
+          <textarea
+            v-model="notes"
+            rows="3"
+            placeholder="Thoughts after the conversation — what went well, what to follow up on..."
+          ></textarea>
+        </label>
+
         <div v-if="error" class="error">{{ error }}</div>
 
         <footer>
           <button type="button" class="secondary" @click="emit('close')">Cancel</button>
           <button type="submit" class="primary" :disabled="!canSubmit">
-            {{ submitting ? "Saving…" : "Save review" }}
+            {{ submitting ? "Saving…" : (isEdit ? "Save changes" : "Save review") }}
           </button>
         </footer>
       </form>

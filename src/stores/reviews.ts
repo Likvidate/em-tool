@@ -1,7 +1,11 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { reviewsApi, InvokeError } from "../lib/invoke";
-import type { PerformanceReview, NewPerformanceReviewInput } from "../types/performance-review";
+import type {
+  PerformanceReview,
+  NewPerformanceReviewInput,
+  UpdatePerformanceReviewInput,
+} from "../types/performance-review";
 
 export const useReviewsStore = defineStore("reviews", () => {
   const byReport = ref<Record<number, PerformanceReview[]>>({});
@@ -30,9 +34,24 @@ export const useReviewsStore = defineStore("reviews", () => {
     return created;
   }
 
+  async function update(input: UpdatePerformanceReviewInput): Promise<PerformanceReview> {
+    const updated = await reviewsApi.update(input);
+    for (const [rid, list] of Object.entries(byReport.value)) {
+      const idx = list.findIndex((r) => r.id === updated.id);
+      if (idx !== -1) {
+        const next = [...list];
+        next[idx] = updated;
+        next.sort((a, b) => b.occurredAt - a.occurredAt);
+        byReport.value = { ...byReport.value, [Number(rid)]: next };
+        break;
+      }
+    }
+    return updated;
+  }
+
   function forReport(reportId: number): PerformanceReview[] {
     return byReport.value[reportId] ?? [];
   }
 
-  return { byReport, loading, lastError, loadForReport, create, forReport };
+  return { byReport, loading, lastError, loadForReport, create, update, forReport };
 });

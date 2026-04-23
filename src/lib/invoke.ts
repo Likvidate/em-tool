@@ -3,7 +3,7 @@ import type { Report, NewReportInput, UpdateReportInput } from "../types/report"
 import type { WeekRating, UpsertWeekRatingInput } from "../types/week-rating";
 import type { OneOnOne, NewOneOnOneInput, UpdateOneOnOneInput } from "../types/one-on-one";
 import type { ActionItem, NewActionItemInput } from "../types/action-item";
-import type { PerformanceReview, NewPerformanceReviewInput } from "../types/performance-review";
+import type { PerformanceReview, NewPerformanceReviewInput, UpdatePerformanceReviewInput } from "../types/performance-review";
 import type { GeneratedPlan, GeneratePlanInput } from "../types/generated-plan";
 
 export type CommandError = { code: string; message: string };
@@ -83,6 +83,7 @@ export const actionItemsApi = {
 export const reviewsApi = {
   list: (reportId: number) => invoke<PerformanceReview[]>("list_reviews", { reportId }),
   create: (input: NewPerformanceReviewInput) => invoke<PerformanceReview>("create_review", { input }),
+  update: (input: UpdatePerformanceReviewInput) => invoke<PerformanceReview>("update_review", { input }),
   delete: (id: number) => invoke<void>("delete_review", { id }),
 };
 

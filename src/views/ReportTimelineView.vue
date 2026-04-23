@@ -34,6 +34,13 @@ const report = computed(() => reports.byId(reportId.value));
 
 const showLog1on1 = ref(false);
 const showLogReview = ref(false);
+const editing1on1 = ref<OneOnOne | null>(null);
+const editingReview = ref<PerformanceReview | null>(null);
+
+function onEntryClick(e: FeedEntry) {
+  if (e.kind === "one_on_one") editing1on1.value = e.data;
+  else if (e.kind === "review") editingReview.value = e.data;
+}
 
 const ratingsForReport = computed(() => {
   return Object.values(ratings.byKey)
@@ -163,7 +170,8 @@ watch(reportId, async (id) => {
         v-for="e in feedEntries"
         :key="e.kind + ':' + e.data.id"
         class="entry"
-        :class="e.kind"
+        :class="[e.kind, { clickable: e.kind === 'one_on_one' || e.kind === 'review' }]"
+        @click="onEntryClick(e)"
       >
         <div class="date">{{ formatTs(e.ts) }}</div>
         <div class="tag">
@@ -204,6 +212,20 @@ watch(reportId, async (id) => {
       v-if="showLogReview"
       :report-id="reportId"
       @close="showLogReview = false"
+      @created="onCreatedReview"
+    />
+    <LogOneOnOneModal
+      v-if="editing1on1"
+      :report-id="reportId"
+      :existing="editing1on1"
+      @close="editing1on1 = null"
+      @created="onCreatedOneOnOne"
+    />
+    <LogReviewModal
+      v-if="editingReview"
+      :report-id="reportId"
+      :existing="editingReview"
+      @close="editingReview = null"
       @created="onCreatedReview"
     />
   </div>
@@ -277,6 +299,8 @@ h2 { margin: 0; }
 .entry.week .tag { background: #374151; color: var(--text-dim); }
 .entry.one_on_one .tag { background: #1e40af; color: #fff; }
 .entry.review .tag { background: #7c2d12; color: #fff; }
+.entry.clickable { cursor: pointer; transition: background 120ms; }
+.entry.clickable:hover { background: var(--surface-2, #1f2937); }
 
 .week-line { display: flex; align-items: center; gap: 10px; }
 .week-line .iso { font-family: monospace; opacity: 0.7; font-size: 12px; }
