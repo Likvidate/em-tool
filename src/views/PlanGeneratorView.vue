@@ -212,28 +212,24 @@ watch(selectedReportId, async (id) => {
       </div>
 
       <div class="generate-row">
-        <div class="claude-wrap">
-          <button
-            type="button"
-            class="primary"
-            :disabled="!hasApiKey || plans.generating || !selectedReportId"
-            @click="doGenerate('claude')"
-          >
-            <span v-if="plans.generating" class="spinner"></span>
-            {{ plans.generating ? "Generating…" : "✨ Generate with Claude" }}
-          </button>
-          <span v-if="!hasApiKey" class="hint">
-            Add an Anthropic API key in Settings
-          </span>
-        </div>
         <button
           type="button"
-          class="secondary"
+          class="primary"
           :disabled="plans.generating || !selectedReportId"
           @click="doGenerate('template')"
         >
           <span v-if="plans.generating" class="spinner"></span>
-          {{ plans.generating ? "Generating…" : "Generate from template" }}
+          {{ plans.generating ? "Generating…" : "Generate plan" }}
+        </button>
+        <button
+          v-if="hasApiKey"
+          type="button"
+          class="secondary"
+          :disabled="plans.generating || !selectedReportId"
+          @click="doGenerate('claude')"
+        >
+          <span v-if="plans.generating" class="spinner"></span>
+          {{ plans.generating ? "Generating…" : "✨ Generate with Claude" }}
         </button>
       </div>
 

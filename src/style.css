@@ -1,24 +1,166 @@
+/* ─────────────────────────────────────────────────────────────
+   EM Tool — design tokens
+   ───────────────────────────────────────────────────────────── */
+
+@import url("https://rsms.me/inter/inter.css");
+
 :root {
   color-scheme: dark;
-  --bg: #0a0a0a;
-  --surface: #141414;
-  --surface-2: #1a1a1a;
-  --border: #2a2a2a;
-  --text: #e5e5e5;
-  --text-dim: #9a9a9a;
-  --accent: #7c3aed;
+
+  /* Surfaces — layered dark with a subtle blue tint */
+  --bg: #0a0d13;
+  --bg-2: #0e121a;
+  --surface: #141923;
+  --surface-2: #1a212d;
+  --surface-3: #222b3a;
+
+  /* Borders — subtle to prominent */
+  --border: #232b3a;
+  --border-strong: #2e3848;
+  --border-accent: rgba(139, 92, 246, 0.35);
+
+  /* Text */
+  --text: #e8eaed;
+  --text-dim: #98a1b0;
+  --text-mute: #6b7383;
+
+  /* Accent — indigo/violet, dashboard-modern */
+  --accent: #8b5cf6;
+  --accent-strong: #a78bfa;
+  --accent-dim: rgba(139, 92, 246, 0.12);
+
+  /* Rating colors — unchanged (they map to user's mental model) */
   --red: #ef4444;
   --yellow: #facc15;
   --grey: #6b7280;
   --green: #4ade80;
   --blue: #3b82f6;
+
+  /* Semantic */
+  --danger: #f87171;
+  --success: #4ade80;
+  --warning: #fbbf24;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-ring: 0 0 0 3px rgba(139, 92, 246, 0.2);
+
+  /* Radius scale */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Typography */
+  --font-sans: "Inter var", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-base: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
+
+  /* Transitions */
+  --t-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --t-base: 180ms cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Reset & base
+   ───────────────────────────────────────────────────────────── */
+
 * { box-sizing: border-box; }
-html, body, #app { height: 100%; margin: 0; }
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif;
-  font-size: 14px;
+*::before, *::after { box-sizing: border-box; }
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
 }
-button { font-family: inherit; }
+
+body {
+  background:
+    radial-gradient(1200px 800px at 100% -10%, rgba(139, 92, 246, 0.06), transparent 60%),
+    radial-gradient(800px 600px at -10% 110%, rgba(59, 130, 246, 0.04), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--surface-2);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--surface-3); background-clip: padding-box; }
+
+/* Selection */
+::selection { background: var(--accent-dim); color: var(--text); }
+
+/* ─────────────────────────────────────────────────────────────
+   Elements
+   ───────────────────────────────────────────────────────────── */
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast);
+}
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-ring);
+}
+input, select, textarea {
+  font-family: inherit;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+}
+
+a {
+  color: var(--accent-strong);
+  text-decoration: none;
+  transition: color var(--t-fast);
+}
+a:hover { color: var(--accent); text-decoration: underline; }
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+h1 { font-size: var(--fs-2xl); }
+h2 { font-size: var(--fs-xl); }
+h3 { font-size: var(--fs-lg); }
+
+code, pre { font-family: var(--font-mono); }
+
+/* Utility: a clean divider */
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: var(--space-5) 0;
+}
