@@ -6,6 +6,7 @@ mod commands;
 mod db;
 mod reports;
 mod week_ratings;
+mod one_on_ones;
 
 use state::{AppState, default_db_path};
 
