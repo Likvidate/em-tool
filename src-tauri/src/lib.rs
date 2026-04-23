@@ -19,6 +19,17 @@ pub fn run() {
             commands::unlock_vault,
             commands::lock_vault,
             commands::touch_activity,
+            commands::list_reports,
+            commands::get_report,
+            commands::create_report,
+            commands::update_report,
+            commands::archive_report,
+            commands::list_week_ratings_by_week,
+            commands::list_week_ratings_by_report,
+            commands::list_week_ratings_team_overall,
+            commands::list_week_ratings_in_range,
+            commands::upsert_week_rating,
+            commands::delete_week_rating,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
