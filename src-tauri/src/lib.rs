@@ -8,6 +8,7 @@ mod reports;
 mod week_ratings;
 mod one_on_ones;
 mod action_items;
+mod performance_reviews;
 
 use state::{AppState, default_db_path};
 
