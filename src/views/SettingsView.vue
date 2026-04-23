@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import {
-  settingsApi, reportsApi, weekRatingsApi, oneOnOnesApi,
+  settingsApi, weekRatingsApi, oneOnOnesApi,
   actionItemsApi, reviewsApi,
 } from "../lib/invoke";
+import { useReportsStore } from "../stores/reports";
 import ConfirmModal from "../components/ConfirmModal.vue";
 import { currentIsoWeek, addWeeks, formatIsoWeek } from "../lib/iso-week";
+
+const reportsStore = useReportsStore();
 
 const hasKey = ref(false);
 const keyInput = ref("");
@@ -48,7 +51,7 @@ async function seedDemoData() {
   seeding.value = true;
   seedResult.value = null;
   try {
-    const demo = await reportsApi.create({
+    const demo = await reportsStore.create({
       name: "Alex Demo",
       role: "Senior Backend Engineer",
       startDate: "2024-06-01",
