@@ -1,11 +1,14 @@
 use rusqlite::Connection;
 
-pub const CURRENT_SCHEMA_VERSION: i64 = 1;
+pub const CURRENT_SCHEMA_VERSION: i64 = 2;
 
 pub fn run(conn: &Connection) -> rusqlite::Result<()> {
     let version = current_version(conn)?;
     if version < 1 {
         apply_v1(conn)?;
+    }
+    if version < 2 {
+        apply_v2(conn)?;
     }
     Ok(())
 }
@@ -112,6 +115,13 @@ fn apply_v1(conn: &Connection) -> rusqlite::Result<()> {
     "#)
 }
 
+fn apply_v2(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(r#"
+        ALTER TABLE performance_review ADD COLUMN notes_md TEXT;
+        UPDATE app_meta SET schema_version = 2 WHERE id = 1;
+    "#)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,5 +211,35 @@ mod tests {
             [],
         );
         assert!(err.is_err());
+    }
+
+    #[test]
+    fn v2_adds_notes_md_column() {
+        let c = open_in_memory();
+        run(&c).unwrap();
+        // Column should exist and accept inserts
+        c.execute("INSERT INTO report (name, created_at) VALUES ('A', 0)", []).unwrap();
+        c.execute(
+            "INSERT INTO performance_review (report_id, period, occurred_at, created_at, notes_md) \
+             VALUES (1, 'Q1 2026', 0, 0, 'post-review reflection')",
+            [],
+        ).unwrap();
+        let notes: String = c.query_row(
+            "SELECT notes_md FROM performance_review WHERE id = 1",
+            [], |r| r.get(0),
+        ).unwrap();
+        assert_eq!(notes, "post-review reflection");
+    }
+
+    #[test]
+    fn v2_is_idempotent_on_existing_v1_db() {
+        let c = open_in_memory();
+        // Simulate a v1-only DB by ensuring app_meta exists then running apply_v1 directly
+        let _ = current_version(&c).unwrap();
+        apply_v1(&c).unwrap();
+        // Now run() should notice version=1 and apply v2
+        run(&c).unwrap();
+        let v: i64 = c.query_row("SELECT schema_version FROM app_meta WHERE id = 1", [], |r| r.get(0)).unwrap();
+        assert_eq!(v, 2);
     }
 }

@@ -140,6 +140,7 @@ pub fn format_context_md(ctx: &Context) -> String {
         Some(r) => {
             s.push_str(&format!("- {}: {}\n", r.period, r.rating.as_deref().unwrap_or("—")));
             if let Some(d) = &r.dev_areas_md { s.push_str(&format!("- dev areas: {}\n", d)); }
+            if let Some(n) = &r.notes_md { s.push_str(&format!("- post-review reflection: {}\n", n)); }
         }
         None => s.push_str("_No review on file yet._\n"),
     }

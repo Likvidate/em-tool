@@ -48,6 +48,7 @@ pub fn run() {
             commands::delete_action_item,
             commands::list_reviews,
             commands::create_review,
+            commands::update_review,
             commands::delete_review,
             commands::list_generated_plans,
             commands::generate_plan_template,

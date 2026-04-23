@@ -284,6 +284,12 @@ pub fn create_review(state: State<AppState>, input: performance_reviews::NewInpu
 }
 
 #[tauri::command]
+pub fn update_review(state: State<AppState>, input: performance_reviews::UpdateInput)
+    -> Result<performance_reviews::PerformanceReview, CommandError> {
+    db::with_conn(&state, |c| performance_reviews::update(c, input)).map_err(Into::into)
+}
+
+#[tauri::command]
 pub fn delete_review(state: State<AppState>, id: i64) -> Result<(), CommandError> {
     db::with_conn(&state, |c| performance_reviews::delete(c, id)).map_err(Into::into)
 }
