@@ -39,11 +39,21 @@ onUnmounted(() => { if (stop) stop(); });
 <template>
   <div class="app">
     <AppSidebar v-if="showChrome" />
-    <main class="main"><RouterView /></main>
+    <main class="main">
+      <RouterView v-slot="{ Component }">
+        <Transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </Transition>
+      </RouterView>
+    </main>
   </div>
 </template>
 
 <style scoped>
 .app { display: flex; height: 100vh; }
-.main { flex: 1; overflow: auto; padding: 24px; }
+.main {
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-6) var(--space-6) var(--space-8);
+}
 </style>

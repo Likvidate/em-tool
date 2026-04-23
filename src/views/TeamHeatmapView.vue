@@ -41,11 +41,18 @@ function cellTitle(reportId: number | null, isoWeek: string): string {
 
 <template>
   <div class="heatmap">
-    <header class="page-head">
-      <h2>Team heatmap</h2>
+    <header class="page-header">
+      <div>
+        <h2 class="page-title">Team heatmap</h2>
+        <p class="page-subtitle">At-a-glance view of team sentiment over time.</p>
+      </div>
       <div class="range">
-        <label>Range:</label>
-        <select :value="rangeWeeks" @change="(e) => changeRange(Number((e.target as HTMLSelectElement).value))">
+        <label class="range-label">Range</label>
+        <select
+          class="field-input range-select"
+          :value="rangeWeeks"
+          @change="(e) => changeRange(Number((e.target as HTMLSelectElement).value))"
+        >
           <option :value="13">Last 13 weeks</option>
           <option :value="26">Last 26 weeks</option>
           <option :value="52">Last 52 weeks</option>
@@ -53,7 +60,7 @@ function cellTitle(reportId: number | null, isoWeek: string): string {
       </div>
     </header>
 
-    <div class="grid-wrap">
+    <div class="card grid-wrap">
       <div class="grid">
         <div class="row team">
           <div class="name">Team overall</div>
@@ -88,27 +95,73 @@ function cellTitle(reportId: number | null, isoWeek: string): string {
 </template>
 
 <style scoped>
-.heatmap { max-width: 100%; }
-.page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-h2 { margin: 0; font-size: 20px; }
-.range { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); }
-.range select { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+.heatmap {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.range { display: flex; align-items: center; gap: var(--space-2); }
+.range-label {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-mute);
+  font-weight: 600;
+}
+.range-select {
+  width: auto;
+  padding: 6px 10px;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
 
-.grid-wrap { background: #141414; border: 1px solid var(--border); border-radius: 6px; padding: 14px; overflow-x: auto; }
-.grid { min-width: 600px; display: flex; flex-direction: column; gap: 2px; }
+.grid-wrap {
+  padding: var(--space-4);
+  overflow-x: auto;
+}
+.grid {
+  min-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
 .row {
-  display: grid; grid-template-columns: 140px 1fr;
-  gap: 10px; align-items: center;
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: var(--space-3);
+  align-items: center;
 }
 .cells { display: flex; gap: 2px; flex: 1; }
-.name { font-size: 12px; opacity: 0.8; padding-right: 8px; }
-.row.team .name { font-weight: 700; color: #93c5fd; }
-.sep { height: 1px; background: #333; margin: 6px 0; }
-.cell { flex: 1; min-width: 6px; height: 22px; border-radius: 2px; }
-.cell.red    { background: #ef4444; }
-.cell.yellow { background: #facc15; }
-.cell.grey   { background: #6b7280; }
-.cell.green  { background: #4ade80; }
-.cell.blue   { background: #3b82f6; }
-.cell.none   { background: #1a1a1a; }
+.name {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  padding-right: var(--space-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row.team .name { font-weight: 700; color: var(--accent-strong); }
+.sep { height: 1px; background: var(--border); margin: var(--space-2) 0; }
+.cell {
+  flex: 1;
+  min-width: 6px;
+  height: 22px;
+  border-radius: 2px;
+  transition: transform var(--t-fast), box-shadow var(--t-fast);
+  cursor: pointer;
+}
+.cell:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 0 1px var(--bg), 0 0 0 2px rgba(255, 255, 255, 0.25);
+  position: relative;
+  z-index: 1;
+}
+.cell.red    { background: var(--red); }
+.cell.yellow { background: var(--yellow); }
+.cell.grey   { background: var(--grey); }
+.cell.green  { background: var(--green); }
+.cell.blue   { background: var(--blue); }
+.cell.none   { background: var(--bg-2); }
 </style>

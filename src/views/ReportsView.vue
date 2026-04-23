@@ -46,65 +46,70 @@ async function confirmPending() {
 
 <template>
   <div class="reports-view">
-    <header class="page-head">
-      <h2>Team members</h2>
+    <header class="page-header">
+      <div>
+        <h2 class="page-title">Team members</h2>
+        <p class="page-subtitle">Manage the direct reports you're tracking.</p>
+      </div>
       <div class="actions">
         <label class="archived-toggle">
           <input v-model="showArchived" type="checkbox" />
           <span>Show archived</span>
         </label>
-        <button class="primary" @click="showAdd = true">+ Add team member</button>
+        <button class="btn btn-primary" @click="showAdd = true">+ Add team member</button>
       </div>
     </header>
 
-    <div v-if="reports.loading && !reports.loaded" class="empty">Loading…</div>
+    <div v-if="reports.loading && !reports.loaded" class="empty-state">Loading…</div>
 
-    <div v-else-if="visible.length === 0" class="empty">
+    <div v-else-if="visible.length === 0" class="empty-state">
       <p>No team members yet.</p>
-      <button class="primary" @click="showAdd = true">Add your first team member</button>
+      <button class="btn btn-primary" @click="showAdd = true">Add your first team member</button>
     </div>
 
-    <table v-else class="list">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Role</th>
-          <th>Cadence</th>
-          <th>Started</th>
-          <th></th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="r in visible"
-          :key="r.id"
-          :class="{ archived: !r.active }"
-          @click="openTimeline(r.id)"
-        >
-          <td class="name">{{ r.name }}</td>
-          <td>{{ r.role ?? "—" }}</td>
-          <td>every {{ r.oneOnOneCadenceDays }}d</td>
-          <td>{{ r.startDate ?? "—" }}</td>
-          <td class="status">
-            <span v-if="!r.active" class="badge">archived</span>
-          </td>
-          <td class="row-actions">
-            <button
-              v-if="r.active"
-              class="icon-btn"
-              title="Archive (hide, keep history)"
-              @click="promptArchive(r.id, r.name, $event)"
-            >📦</button>
-            <button
-              class="icon-btn danger"
-              title="Delete permanently"
-              @click="promptDelete(r.id, r.name, $event)"
-            >🗑</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else class="card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Role</th>
+            <th>Cadence</th>
+            <th>Started</th>
+            <th></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="r in visible"
+            :key="r.id"
+            :class="{ archived: !r.active }"
+            @click="openTimeline(r.id)"
+          >
+            <td class="name">{{ r.name }}</td>
+            <td>{{ r.role ?? "—" }}</td>
+            <td>every {{ r.oneOnOneCadenceDays }}d</td>
+            <td>{{ r.startDate ?? "—" }}</td>
+            <td class="status">
+              <span v-if="!r.active" class="badge">archived</span>
+            </td>
+            <td class="row-actions">
+              <button
+                v-if="r.active"
+                class="btn btn-ghost btn-sm icon-btn"
+                title="Archive (hide, keep history)"
+                @click="promptArchive(r.id, r.name, $event)"
+              >📦</button>
+              <button
+                class="btn btn-ghost btn-sm icon-btn danger"
+                title="Delete permanently"
+                @click="promptDelete(r.id, r.name, $event)"
+              >🗑</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <AddReportModal v-if="showAdd" @close="showAdd = false" @created="(id) => openTimeline(id)" />
 
@@ -130,38 +135,36 @@ async function confirmPending() {
 </template>
 
 <style scoped>
-.reports-view { max-width: 900px; }
-.page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-h2 { margin: 0; font-size: 20px; }
-.actions { display: flex; gap: 12px; align-items: center; }
-.archived-toggle { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--text-dim); }
-.primary {
-  background: var(--accent); color: #fff; border: none;
-  padding: 7px 14px; border-radius: 4px; font-size: 13px; cursor: pointer;
+.reports-view {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
 }
-.empty { padding: 48px 0; text-align: center; color: var(--text-dim); }
-.empty .primary { margin-top: 12px; }
-.list { width: 100%; border-collapse: collapse; font-size: 13px; }
-.list th {
-  text-align: left; padding: 8px 12px;
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
-  opacity: 0.55; border-bottom: 1px solid var(--border);
+.actions { display: flex; gap: var(--space-3); align-items: center; }
+.archived-toggle {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
 }
-.list td { padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
-.list tr:hover td { background: var(--surface-2); }
-.list .name { font-weight: 600; }
-.list tr.archived td { opacity: 0.5; }
-.badge {
-  display: inline-block; padding: 2px 6px; border-radius: 3px;
-  background: #374151; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
-}
+.archived-toggle input { accent-color: var(--accent); }
+
+.data-table td { cursor: pointer; }
+.data-table tr.archived td { opacity: 0.5; }
+.data-table .name { font-weight: 600; color: var(--text); }
+
 .status { text-align: right; }
-.row-actions { text-align: right; white-space: nowrap; width: 72px; }
+.row-actions { text-align: right; white-space: nowrap; width: 88px; }
 .icon-btn {
-  background: none; border: 1px solid var(--border); color: var(--text-dim);
-  width: 28px; height: 28px; border-radius: 4px; cursor: pointer;
-  font-size: 13px; margin-left: 4px; padding: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin-left: 4px;
 }
-.icon-btn:hover { color: var(--text); background: var(--surface-2); }
-.icon-btn.danger:hover { color: #f87171; border-color: #b91c1c; }
+.icon-btn.danger:hover { color: var(--danger); }
 </style>

@@ -94,6 +94,13 @@ function preview(md: string | null, max = 120): string {
   return trimmed.slice(0, max).trimEnd() + "…";
 }
 
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 async function loadAll(id: number) {
   await Promise.all([
     ratings.loadForReport(id),
@@ -126,34 +133,44 @@ watch(reportId, async (id) => {
 
 <template>
   <div class="timeline" v-if="report">
-    <header class="head">
-      <div>
-        <button class="back" @click="router.push('/reports')">← Team members</button>
-        <h2>{{ report.name }}</h2>
-        <p class="sub">
-          {{ report.role ?? "—" }} ·
-          1:1 every {{ report.oneOnOneCadenceDays }}d ·
-          joined {{ report.startDate ?? "—" }}
-        </p>
-      </div>
-      <div class="person-actions">
-        <button @click="showLog1on1 = true">+ Log 1:1</button>
-        <button @click="showLogReview = true">+ Log review</button>
-      </div>
-    </header>
+    <button class="back btn btn-ghost btn-sm" @click="router.push('/reports')">← Team members</button>
 
-    <div class="stats">
-      <div class="stat"><strong>{{ ratingsForReport.length }}</strong><span>weeks</span></div>
-      <div class="stat"><span class="sw green"></span><strong>{{ counts.green }}</strong></div>
-      <div class="stat"><span class="sw yellow"></span><strong>{{ counts.yellow }}</strong></div>
-      <div class="stat"><span class="sw red"></span><strong>{{ counts.red }}</strong></div>
-      <div class="stat"><span class="sw blue"></span><strong>{{ counts.blue }}</strong></div>
-      <div class="stat"><span class="sw grey"></span><strong>{{ counts.grey }}</strong></div>
+    <div class="card hero">
+      <div class="hero-head">
+        <div class="person-head">
+          <div class="avatar">{{ initials(report.name) }}</div>
+          <div>
+            <h2 class="page-title">{{ report.name }}</h2>
+            <p class="page-subtitle">
+              {{ report.role ?? "—" }}
+              <span class="dot">·</span>
+              1:1 every {{ report.oneOnOneCadenceDays }}d
+              <span class="dot">·</span>
+              joined {{ report.startDate ?? "—" }}
+            </p>
+          </div>
+        </div>
+        <div class="person-actions">
+          <button class="btn btn-primary" @click="showLog1on1 = true">+ Log 1:1</button>
+          <button class="btn btn-secondary" @click="showLogReview = true">+ Log review</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><strong>{{ ratingsForReport.length }}</strong><span>weeks</span></div>
+        <div class="stat"><span class="sw green"></span><strong>{{ counts.green }}</strong></div>
+        <div class="stat"><span class="sw yellow"></span><strong>{{ counts.yellow }}</strong></div>
+        <div class="stat"><span class="sw red"></span><strong>{{ counts.red }}</strong></div>
+        <div class="stat"><span class="sw blue"></span><strong>{{ counts.blue }}</strong></div>
+        <div class="stat"><span class="sw grey"></span><strong>{{ counts.grey }}</strong></div>
+      </div>
+
+      <div class="strip-wrap">
+        <ColorStrip :cells="stripCells" />
+      </div>
     </div>
 
-    <ColorStrip :cells="stripCells" />
-
-    <section class="open-actions" v-if="openActions.length > 0">
+    <section v-if="openActions.length > 0" class="card open-actions">
       <h3>Open action items</h3>
       <ActionItemList
         :items="openActions"
@@ -162,8 +179,8 @@ watch(reportId, async (id) => {
       />
     </section>
 
-    <div class="feed">
-      <div v-if="feedEntries.length === 0" class="empty">
+    <div class="card feed">
+      <div v-if="feedEntries.length === 0" class="empty-state">
         Nothing logged yet. Capture a weekly rating, log a 1:1, or record a review.
       </div>
       <div
@@ -233,81 +250,156 @@ watch(reportId, async (id) => {
 </template>
 
 <style scoped>
-.timeline { max-width: 900px; }
-.head {
-  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
-  padding: 14px; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 6px 6px 0 0;
+.timeline {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
 }
-.back { background: none; border: none; color: var(--text-dim); font-size: 12px; cursor: pointer; margin-bottom: 4px; padding: 0; }
-h2 { margin: 0; }
-.sub { margin: 3px 0 0; font-size: 12px; opacity: 0.6; }
-.person-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.person-actions button {
-  background: var(--surface-2, #1f2937); color: var(--text);
-  border: 1px solid var(--border); border-radius: 4px;
-  padding: 6px 10px; font-size: 12px; font-family: inherit; cursor: pointer;
+
+.back {
+  align-self: flex-start;
+  padding: 4px 8px;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
 }
-.person-actions button:hover { border-color: var(--accent); color: var(--accent); }
+
+.hero { padding: 0; }
+.hero-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+.person-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: var(--fs-md);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+.dot { color: var(--text-mute); margin: 0 4px; }
+.person-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
 
 .stats {
-  display: flex; gap: 18px;
-  padding: 10px 14px;
-  background: #141414; border-left: 1px solid var(--border); border-right: 1px solid var(--border);
-  font-size: 12px; align-items: center;
+  display: flex;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  align-items: center;
 }
-.stat { display: flex; align-items: center; gap: 4px; }
-.stat strong { color: var(--text); }
-.sw { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
-.sw.red    { background: #ef4444; }
-.sw.yellow { background: #facc15; }
-.sw.grey   { background: #6b7280; }
-.sw.green  { background: #4ade80; }
-.sw.blue   { background: #3b82f6; }
+.stat { display: flex; align-items: center; gap: 6px; }
+.stat strong { color: var(--text); font-weight: 600; }
+.stat span { color: var(--text-dim); }
 
-.open-actions {
-  background: #141414;
-  border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  border-top: 1px solid #222;
-  padding: 12px 14px;
+.sw {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: inline-block;
 }
+.sw.red    { background: var(--red); }
+.sw.yellow { background: var(--yellow); }
+.sw.grey   { background: var(--grey); }
+.sw.green  { background: var(--green); }
+.sw.blue   { background: var(--blue); }
+
+.strip-wrap { padding: var(--space-4) var(--space-5); }
+
+.open-actions { padding: var(--space-4) var(--space-5); }
 .open-actions h3 {
-  margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
-  letter-spacing: 0.5px; color: var(--text-dim); font-weight: 600;
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-mute);
+  font-weight: 600;
 }
 
-.feed { background: #141414; border: 1px solid var(--border); border-top: none; border-radius: 0 0 6px 6px; }
+.feed { padding: 0; }
 .entry {
-  display: grid; grid-template-columns: 90px 72px 1fr; gap: 10px;
-  padding: 10px 14px; border-bottom: 1px solid #222;
-  font-size: 13px; align-items: center;
+  display: grid;
+  grid-template-columns: 100px 80px 1fr;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-base);
+  align-items: center;
+  transition: background var(--t-fast);
 }
 .entry:last-child { border-bottom: none; }
-.date { font-family: monospace; opacity: 0.55; font-size: 12px; }
+.date {
+  font-family: var(--font-mono);
+  color: var(--text-mute);
+  font-size: var(--fs-sm);
+}
 .tag {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
   font-weight: 600;
   text-align: center;
   justify-self: start;
+  border: 1px solid transparent;
 }
-.entry.week .tag { background: #374151; color: var(--text-dim); }
-.entry.one_on_one .tag { background: #1e40af; color: #fff; }
-.entry.review .tag { background: #7c2d12; color: #fff; }
-.entry.clickable { cursor: pointer; transition: background 120ms; }
-.entry.clickable:hover { background: var(--surface-2, #1f2937); }
+.entry.week .tag {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+.entry.one_on_one .tag {
+  background: var(--accent-dim);
+  color: var(--accent-strong);
+  border-color: var(--border-accent);
+}
+.entry.review .tag {
+  background: rgba(251, 146, 60, 0.12);
+  color: #fdba74;
+  border-color: rgba(251, 146, 60, 0.3);
+}
+.entry.clickable { cursor: pointer; }
+.entry.clickable:hover { background: var(--surface-2); }
 
-.week-line { display: flex; align-items: center; gap: 10px; }
-.week-line .iso { font-family: monospace; opacity: 0.7; font-size: 12px; }
+.week-line { display: flex; align-items: center; gap: var(--space-3); }
+.week-line .iso {
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
 .week-line .notes { color: var(--text); }
-.agenda { color: var(--text); line-height: 1.4; }
+.agenda { color: var(--text); line-height: 1.5; }
 .review-head { color: var(--text); font-weight: 500; }
-.dev-areas { color: var(--text-dim); font-size: 12px; margin-top: 2px; line-height: 1.4; }
+.dev-areas {
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  margin-top: 3px;
+  line-height: 1.5;
+}
 
-.empty, .loading { padding: 32px; text-align: center; color: var(--text-dim); }
+.loading {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--text-dim);
+}
 </style>
