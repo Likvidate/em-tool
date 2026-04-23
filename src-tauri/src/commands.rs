@@ -187,3 +187,174 @@ pub fn delete_week_rating(
 ) -> Result<(), CommandError> {
     db::with_conn(&state, |c| week_ratings::delete(c, report_id, &iso_week)).map_err(Into::into)
 }
+
+use crate::{one_on_ones, action_items, performance_reviews, plan_generation, secure_settings};
+
+impl From<plan_generation::GenError> for CommandError {
+    fn from(e: plan_generation::GenError) -> Self {
+        let code = match &e {
+            plan_generation::GenError::ReportNotFound => "not_found",
+            plan_generation::GenError::NoApiKey => "no_api_key",
+            plan_generation::GenError::Anthropic(_) => "anthropic",
+            plan_generation::GenError::Sqlite(_) => "sqlite",
+            plan_generation::GenError::Json(_) => "json",
+        };
+        CommandError { code: code.to_string(), message: e.to_string() }
+    }
+}
+
+// --- one_on_ones ---
+
+#[tauri::command]
+pub fn list_one_on_ones(state: State<AppState>, report_id: i64)
+    -> Result<Vec<one_on_ones::OneOnOne>, CommandError> {
+    db::with_conn(&state, |c| one_on_ones::list_by_report(c, report_id)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn create_one_on_one(state: State<AppState>, input: one_on_ones::NewInput)
+    -> Result<one_on_ones::OneOnOne, CommandError> {
+    let now = now_secs();
+    db::with_conn(&state, |c| one_on_ones::create(c, input, now)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn update_one_on_one(state: State<AppState>, input: one_on_ones::UpdateInput)
+    -> Result<one_on_ones::OneOnOne, CommandError> {
+    db::with_conn(&state, |c| one_on_ones::update(c, input)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn delete_one_on_one(state: State<AppState>, id: i64) -> Result<(), CommandError> {
+    db::with_conn(&state, |c| one_on_ones::delete(c, id)).map_err(Into::into)
+}
+
+// --- action_items ---
+
+#[tauri::command]
+pub fn list_action_items_by_meeting(state: State<AppState>, one_on_one_id: i64)
+    -> Result<Vec<action_items::ActionItem>, CommandError> {
+    db::with_conn(&state, |c| action_items::list_by_meeting(c, one_on_one_id)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn list_action_items_by_report(state: State<AppState>, report_id: i64)
+    -> Result<Vec<action_items::ActionItem>, CommandError> {
+    db::with_conn(&state, |c| action_items::list_by_report(c, report_id)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn list_open_action_items(state: State<AppState>, report_id: i64)
+    -> Result<Vec<action_items::ActionItem>, CommandError> {
+    db::with_conn(&state, |c| action_items::list_open_for_report(c, report_id)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn create_action_item(state: State<AppState>, input: action_items::NewInput)
+    -> Result<action_items::ActionItem, CommandError> {
+    let now = now_secs();
+    db::with_conn(&state, |c| action_items::create(c, input, now)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn toggle_action_item(state: State<AppState>, id: i64)
+    -> Result<action_items::ActionItem, CommandError> {
+    let now = now_secs();
+    db::with_conn(&state, |c| action_items::toggle_complete(c, id, now)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn delete_action_item(state: State<AppState>, id: i64) -> Result<(), CommandError> {
+    db::with_conn(&state, |c| action_items::delete(c, id)).map_err(Into::into)
+}
+
+// --- performance_reviews ---
+
+#[tauri::command]
+pub fn list_reviews(state: State<AppState>, report_id: i64)
+    -> Result<Vec<performance_reviews::PerformanceReview>, CommandError> {
+    db::with_conn(&state, |c| performance_reviews::list_by_report(c, report_id)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn create_review(state: State<AppState>, input: performance_reviews::NewInput)
+    -> Result<performance_reviews::PerformanceReview, CommandError> {
+    let now = now_secs();
+    db::with_conn(&state, |c| performance_reviews::create(c, input, now)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn delete_review(state: State<AppState>, id: i64) -> Result<(), CommandError> {
+    db::with_conn(&state, |c| performance_reviews::delete(c, id)).map_err(Into::into)
+}
+
+// --- plan generation ---
+
+#[tauri::command]
+pub fn list_generated_plans(state: State<AppState>, report_id: i64)
+    -> Result<Vec<plan_generation::GeneratedPlan>, CommandError> {
+    db::with_conn(&state, |c| plan_generation::list_plans_for_report(c, report_id)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn generate_plan_template(state: State<AppState>, input: plan_generation::GenerateInput)
+    -> Result<plan_generation::GeneratedPlan, CommandError> {
+    let now = now_secs();
+    let guard = state.inner.lock().unwrap();
+    let conn = guard.connection.as_ref().ok_or(CommandError {
+        code: "locked".into(), message: "vault is locked".into(),
+    })?;
+    plan_generation::generate_sync(conn, &input, now).map_err(CommandError::from)
+}
+
+#[tauri::command]
+pub async fn generate_plan_claude(
+    state: State<'_, AppState>,
+    input: plan_generation::GenerateInput,
+) -> Result<plan_generation::GeneratedPlan, CommandError> {
+    // Phase 1 (under lock): read API key + gather prompt
+    let (api_key, prompt) = {
+        let guard = state.inner.lock().unwrap();
+        let conn = guard.connection.as_ref().ok_or(CommandError {
+            code: "locked".into(), message: "vault is locked".into(),
+        })?;
+        let key = plan_generation::read_api_key(conn)
+            .map_err(CommandError::from)?
+            .ok_or(CommandError { code: "no_api_key".into(), message: "no api key configured".into() })?;
+        let prompt = plan_generation::gather_prompt(conn, &input)
+            .map_err(CommandError::from)?;
+        (key, prompt)
+    };
+
+    // Phase 2 (no lock held): async HTTP call
+    let output = plan_generation::call_claude(&api_key, &prompt).await
+        .map_err(CommandError::from)?;
+
+    // Phase 3 (re-lock): persist result
+    let now = now_secs();
+    let guard = state.inner.lock().unwrap();
+    let conn = guard.connection.as_ref().ok_or(CommandError {
+        code: "locked".into(), message: "vault is locked (after claude call)".into(),
+    })?;
+    plan_generation::save_claude_plan(conn, &input, &prompt, &output, now)
+        .map_err(CommandError::from)
+}
+
+#[tauri::command]
+pub fn attach_plan_to_meeting(state: State<AppState>, plan_id: i64, one_on_one_id: i64)
+    -> Result<(), CommandError> {
+    db::with_conn(&state, |c| plan_generation::attach_to_meeting(c, plan_id, one_on_one_id)).map_err(Into::into)
+}
+
+// --- API key settings ---
+
+#[tauri::command]
+pub fn get_api_key_set(state: State<AppState>) -> Result<bool, CommandError> {
+    db::with_conn(&state, |c| secure_settings::get_anthropic_key(c).map(|o| o.is_some())).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn set_api_key(state: State<AppState>, value: Option<String>) -> Result<(), CommandError> {
+    let now = now_secs();
+    db::with_conn(&state, |c| secure_settings::set_anthropic_key(c, value.as_deref(), now)).map_err(Into::into)
+}
