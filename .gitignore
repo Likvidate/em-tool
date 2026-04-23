@@ -1,7 +1,19 @@
 node_modules/
 dist/
+dist-ssr/
+.DS_Store
+*.local
+
+# Rust / Tauri
 target/
+src-tauri/target/
+src-tauri/gen/
+
+# Vault data
 vault.db
 vault.db-*
 backups/
+
+# Tooling
 .superpowers/
+.vscode/
