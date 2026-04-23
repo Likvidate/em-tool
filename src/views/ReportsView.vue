@@ -3,11 +3,15 @@ import { onMounted, ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useReportsStore } from "../stores/reports";
 import AddReportModal from "../components/AddReportModal.vue";
+import ConfirmModal from "../components/ConfirmModal.vue";
 
 const reports = useReportsStore();
 const router = useRouter();
 const showAdd = ref(false);
 const showArchived = ref(false);
+
+type PendingAction = { kind: "archive" | "delete"; id: number; name: string };
+const pending = ref<PendingAction | null>(null);
 
 const visible = computed(() =>
   showArchived.value ? reports.items : reports.active,
@@ -21,16 +25,22 @@ function openTimeline(id: number) {
   router.push({ name: "report-timeline", params: { id: String(id) } });
 }
 
-async function archiveMember(id: number, name: string, ev: Event) {
+function promptArchive(id: number, name: string, ev: Event) {
   ev.stopPropagation();
-  if (!confirm(`Archive ${name}? They'll be hidden from the capture grid but their history is preserved.`)) return;
-  await reports.archive(id);
+  pending.value = { kind: "archive", id, name };
 }
 
-async function deleteMember(id: number, name: string, ev: Event) {
+function promptDelete(id: number, name: string, ev: Event) {
   ev.stopPropagation();
-  if (!confirm(`Permanently delete ${name} and all their ratings, 1:1 notes, and reviews? This cannot be undone.`)) return;
-  await reports.remove(id);
+  pending.value = { kind: "delete", id, name };
+}
+
+async function confirmPending() {
+  if (!pending.value) return;
+  const { kind, id } = pending.value;
+  pending.value = null;
+  if (kind === "archive") await reports.archive(id);
+  else await reports.remove(id);
 }
 </script>
 
@@ -84,12 +94,12 @@ async function deleteMember(id: number, name: string, ev: Event) {
               v-if="r.active"
               class="icon-btn"
               title="Archive (hide, keep history)"
-              @click="archiveMember(r.id, r.name, $event)"
+              @click="promptArchive(r.id, r.name, $event)"
             >📦</button>
             <button
               class="icon-btn danger"
               title="Delete permanently"
-              @click="deleteMember(r.id, r.name, $event)"
+              @click="promptDelete(r.id, r.name, $event)"
             >🗑</button>
           </td>
         </tr>
@@ -97,6 +107,25 @@ async function deleteMember(id: number, name: string, ev: Event) {
     </table>
 
     <AddReportModal v-if="showAdd" @close="showAdd = false" @created="(id) => openTimeline(id)" />
+
+    <ConfirmModal
+      v-if="pending?.kind === 'archive'"
+      title="Archive team member?"
+      :message="`${pending.name} will be hidden from the capture grid and heatmap, but their history stays. You can restore them anytime by enabling 'Show archived'.`"
+      confirm-label="Archive"
+      @confirm="confirmPending"
+      @cancel="pending = null"
+    />
+
+    <ConfirmModal
+      v-if="pending?.kind === 'delete'"
+      title="Delete permanently?"
+      :message="`${pending.name} and all their ratings, 1:1 notes, action items, and reviews will be permanently deleted. This can't be undone.`"
+      confirm-label="Delete forever"
+      variant="danger"
+      @confirm="confirmPending"
+      @cancel="pending = null"
+    />
   </div>
 </template>
 

@@ -53,8 +53,15 @@ async function submit() {
           <label><span>Role</span>
             <input v-model="role" type="text" placeholder="e.g. Senior Backend" />
           </label>
-          <label><span>Start date on team</span>
-            <input v-model="startDate" type="date" />
+          <label><span>Start date on team <em class="optional">(optional)</em></span>
+            <input
+              v-model="startDate"
+              type="text"
+              placeholder="YYYY-MM-DD"
+              pattern="\d{4}-\d{2}-\d{2}"
+              inputmode="numeric"
+              maxlength="10"
+            />
           </label>
         </div>
         <label><span>1:1 cadence</span>
@@ -110,6 +117,7 @@ input, textarea, select {
 }
 textarea { resize: vertical; }
 .error { color: #f87171; font-size: 12px; }
+.optional { font-style: normal; opacity: 0.6; font-weight: 400; }
 footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 button { padding: 7px 14px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
 .primary { background: var(--accent); color: #fff; }

@@ -3,7 +3,7 @@ import { RouterLink } from "vue-router";
 
 const items = [
   { to: "/capture", label: "Weekly capture", icon: "📋" },
-  { to: "/reports", label: "Reports", icon: "👤" },
+  { to: "/reports", label: "Team members", icon: "👤" },
   { to: "/heatmap", label: "Team heatmap", icon: "🔥" },
   { to: "/plan", label: "Plan generator", icon: "🎯" },
   { to: "/settings", label: "Settings", icon: "⚙" },
