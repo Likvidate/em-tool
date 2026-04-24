@@ -43,6 +43,8 @@ pub enum GenError {
     NoApiKey,
     #[error("anthropic: {0}")]
     Anthropic(String),
+    #[error("ollama: {0}")]
+    Ollama(String),
     #[error("sqlite: {0}")]
     Sqlite(#[from] rusqlite::Error),
     #[error("json: {0}")]
@@ -451,7 +453,7 @@ pub async fn call_ollama(base_url: &str, model: &str, prompt: &str) -> Result<St
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(180))
         .build()
-        .map_err(|e| GenError::Anthropic(e.to_string()))?;
+        .map_err(|e| GenError::Ollama(e.to_string()))?;
 
     let url = format!("{}/api/chat", base_url.trim_end_matches('/'));
     let resp = client.post(&url)
@@ -459,16 +461,16 @@ pub async fn call_ollama(base_url: &str, model: &str, prompt: &str) -> Result<St
         .json(&body)
         .send()
         .await
-        .map_err(|e| GenError::Anthropic(format!("ollama request failed: {}", e)))?;
+        .map_err(|e| GenError::Ollama(format!("request failed: {}", e)))?;
 
     let status = resp.status();
     let json: serde_json::Value = resp.json().await
-        .map_err(|e| GenError::Anthropic(format!("ollama response parse failed: {}", e)))?;
+        .map_err(|e| GenError::Ollama(format!("response parse failed: {}", e)))?;
     if !status.is_success() {
-        return Err(GenError::Anthropic(format!("ollama status {}: {}", status, json)));
+        return Err(GenError::Ollama(format!("status {}: {}", status, json)));
     }
     let text = json["message"]["content"].as_str()
-        .ok_or_else(|| GenError::Anthropic(format!("ollama unexpected shape: {}", json)))?
+        .ok_or_else(|| GenError::Ollama(format!("unexpected shape: {}", json)))?
         .to_string();
     Ok(text)
 }

@@ -196,6 +196,7 @@ impl From<plan_generation::GenError> for CommandError {
             plan_generation::GenError::ReportNotFound => "not_found",
             plan_generation::GenError::NoApiKey => "no_api_key",
             plan_generation::GenError::Anthropic(_) => "anthropic",
+            plan_generation::GenError::Ollama(_) => "ollama",
             plan_generation::GenError::Sqlite(_) => "sqlite",
             plan_generation::GenError::Json(_) => "json",
         };
