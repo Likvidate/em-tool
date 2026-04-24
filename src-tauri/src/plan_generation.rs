@@ -447,7 +447,12 @@ pub async fn call_ollama(base_url: &str, model: &str, prompt: &str) -> Result<St
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "stream": false,
-        "keep_alive": 0
+        "keep_alive": 0,
+        "options": {
+            "num_predict": 1500,
+            "temperature": 0.4,
+            "repeat_penalty": 1.15
+        }
     });
 
     let client = reqwest::Client::builder()
