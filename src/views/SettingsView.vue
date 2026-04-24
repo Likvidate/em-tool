@@ -8,8 +8,10 @@ import {
 import { useReportsStore } from "../stores/reports";
 import ConfirmModal from "../components/ConfirmModal.vue";
 import { currentIsoWeek, addWeeks, formatIsoWeek } from "../lib/iso-week";
+import pkg from "../../package.json";
 
 const reportsStore = useReportsStore();
+const appVersion = pkg.version;
 
 const hasKey = ref(false);
 const keyInput = ref("");
@@ -397,7 +399,7 @@ onMounted(async () => {
 
     <section class="card card-body">
       <h3>About</h3>
-      <p class="about-line">EM Tool v0.1.0</p>
+      <p class="about-line">EM Tool v{{ appVersion }}</p>
       <p class="about-line">
         Local-only — no data leaves your machine except when generating plans with Claude.
       </p>

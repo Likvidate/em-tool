@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
+import pkg from "../../package.json";
+
+const version = pkg.version;
 
 const items = [
   { to: "/capture", label: "Weekly capture", icon: "📋" },
@@ -34,7 +37,7 @@ const items = [
     </nav>
 
     <div class="sidebar-foot">
-      <div class="foot-line">v0.1.0</div>
+      <div class="foot-line">v{{ version }}</div>
     </div>
   </aside>
 </template>
