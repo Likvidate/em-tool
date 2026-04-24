@@ -451,7 +451,7 @@ pub async fn call_ollama(base_url: &str, model: &str, prompt: &str) -> Result<St
     });
 
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(180))
+        .timeout(std::time::Duration::from_secs(600))
         .build()
         .map_err(|e| GenError::Ollama(e.to_string()))?;
 
