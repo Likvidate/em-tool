@@ -1,3 +1,4 @@
+use chrono::{NaiveDate, Utc};
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use crate::{one_on_ones, performance_reviews, reports, week_ratings, action_items, secure_settings};
@@ -148,17 +149,102 @@ pub fn format_context_md(ctx: &Context) -> String {
     s
 }
 
+fn count_trailing(ratings: &[week_ratings::WeekRating], pred: impl Fn(&str) -> bool) -> usize {
+    ratings.iter().rev().take_while(|r| pred(&r.color)).count()
+}
+
+fn days_overdue(due: &str, today: NaiveDate) -> Option<i64> {
+    let d = NaiveDate::parse_from_str(due, "%Y-%m-%d").ok()?;
+    let delta = (today - d).num_days();
+    if delta > 14 { Some(delta) } else { None }
+}
+
+fn is_stopword(t: &str) -> bool {
+    matches!(t,
+        "the" | "and" | "with" | "this" | "that" | "when" | "where"
+        | "them" | "they" | "will" | "your" | "have"
+    )
+}
+
+fn substantive_tokens(s: &str) -> Vec<String> {
+    let lower = s.to_lowercase();
+    let mut out: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    for ch in lower.chars() {
+        if ch.is_ascii_alphanumeric() {
+            cur.push(ch);
+        } else {
+            if !cur.is_empty() {
+                if cur.len() >= 5 && !is_stopword(&cur) {
+                    out.push(cur.clone());
+                }
+                cur.clear();
+            }
+        }
+    }
+    if !cur.is_empty() && cur.len() >= 5 && !is_stopword(&cur) {
+        out.push(cur);
+    }
+    out
+}
+
+fn text_contains_any_token(text: &str, tokens: &[String]) -> bool {
+    if tokens.is_empty() { return false; }
+    let lower = text.to_lowercase();
+    tokens.iter().any(|t| lower.contains(t.as_str()))
+}
+
 pub fn template_plan(ctx: &Context, kind: &str) -> String {
     let mut s = String::new();
     let heading = if kind == "review" { "Review prep" } else { "1:1 prep" };
     s.push_str(&format!("# {} — {}\n\n", heading, ctx.report.name));
 
-    s.push_str("## Suggested talking points\n");
     let reds: Vec<_> = ctx.week_ratings.iter().filter(|r| r.color == "red").collect();
     let yellows: Vec<_> = ctx.week_ratings.iter().filter(|r| r.color == "yellow").collect();
     let blues: Vec<_> = ctx.week_ratings.iter().filter(|r| r.color == "blue").collect();
     let greens: Vec<_> = ctx.week_ratings.iter().filter(|r| r.color == "green").collect();
 
+    // 1. Wellbeing check — 3+ red weeks in window.
+    if reds.len() >= 3 {
+        s.push_str(&format!(
+            "## 🚨 Wellbeing check\n\
+             {} red weeks in this window suggests sustained pressure. Before problem-solving,\n\
+             ask how they're feeling overall and whether something outside work is contributing.\n\n",
+            reds.len()
+        ));
+    }
+
+    // 2 & 3. Trend flags (declining OR sustained momentum).
+    let trailing_decline = count_trailing(&ctx.week_ratings, |c| c == "yellow" || c == "red");
+    let trailing_momentum = count_trailing(&ctx.week_ratings, |c| c == "green" || c == "blue");
+    if trailing_decline >= 3 {
+        s.push_str(&format!(
+            "## 📉 Recent trend\n\
+             Last {} consecutive weeks were yellow or red. Worth asking if something changed\n\
+             recently — a project, a team dynamic, workload, external factors.\n\n",
+            trailing_decline
+        ));
+    } else if trailing_momentum >= 4 {
+        s.push_str(&format!(
+            "## 🚀 Sustained momentum\n\
+             {} weeks of strong signal. Good time to talk growth — stretch projects, new\n\
+             responsibilities, or external visibility (conferences, internal talks, mentorship).\n\n",
+            trailing_momentum
+        ));
+    }
+
+    // 3. Reflection from last 1:1.
+    if let Some(m) = &ctx.latest_one_on_one {
+        if let Some(notes) = &m.notes_md {
+            s.push_str(&format!(
+                "## 🔁 From last 1:1\n{}\n\nAnything to follow up on based on that?\n\n",
+                notes
+            ));
+        }
+    }
+
+    // 4. Suggested talking points (existing).
+    s.push_str("## Suggested talking points\n");
     for r in &reds {
         s.push_str(&format!("- 🔴 **{}**: {}\n", r.iso_week, r.notes.as_deref().unwrap_or("(no notes)")));
     }
@@ -166,14 +252,24 @@ pub fn template_plan(ctx: &Context, kind: &str) -> String {
         s.push_str(&format!("- 🟡 {}: {}\n", r.iso_week, r.notes.as_deref().unwrap_or("(no notes)")));
     }
 
-    s.push_str("\n## Wins to acknowledge\n");
-    if greens.is_empty() && blues.is_empty() {
-        s.push_str("_Nothing strongly positive in this window._\n");
-    } else {
-        for r in &blues { s.push_str(&format!("- 🔵 **{}**: {}\n", r.iso_week, r.notes.as_deref().unwrap_or("(no notes)"))); }
-        for r in &greens { s.push_str(&format!("- 🟢 {}: {}\n", r.iso_week, r.notes.as_deref().unwrap_or("(no notes)"))); }
+    // 5. Overdue action items — surfaced separately.
+    let today = Utc::now().date_naive();
+    let overdue: Vec<(&action_items::ActionItem, i64)> = ctx.open_action_items
+        .iter()
+        .filter_map(|a| a.due_date.as_ref().and_then(|d| days_overdue(d, today)).map(|n| (a, n)))
+        .collect();
+    if !overdue.is_empty() {
+        s.push_str("\n## ⏰ Overdue action items\n");
+        for (a, n) in &overdue {
+            let due = a.due_date.as_deref().unwrap_or("");
+            s.push_str(&format!(
+                "- {} — owner: {} (due {}, {} days overdue)\n",
+                a.text, a.owner, due, n
+            ));
+        }
     }
 
+    // 6. Open action items to follow up on (existing — ALL open items).
     if !ctx.open_action_items.is_empty() {
         s.push_str("\n## Open action items to follow up on\n");
         for a in &ctx.open_action_items {
@@ -185,6 +281,50 @@ pub fn template_plan(ctx: &Context, kind: &str) -> String {
         }
     }
 
+    // 7. Revisit dev areas from review — if not referenced in recent notes.
+    if let Some(r) = &ctx.latest_review {
+        if let Some(dev) = &r.dev_areas_md {
+            let tokens = substantive_tokens(dev);
+            if !tokens.is_empty() {
+                let mut mentioned = false;
+                for wr in &ctx.week_ratings {
+                    if let Some(n) = &wr.notes {
+                        if text_contains_any_token(n, &tokens) { mentioned = true; break; }
+                    }
+                }
+                if !mentioned {
+                    if let Some(m) = &ctx.latest_one_on_one {
+                        if let Some(a) = &m.agenda_md {
+                            if text_contains_any_token(a, &tokens) { mentioned = true; }
+                        }
+                        if !mentioned {
+                            if let Some(n) = &m.notes_md {
+                                if text_contains_any_token(n, &tokens) { mentioned = true; }
+                            }
+                        }
+                    }
+                }
+                if !mentioned {
+                    s.push_str(&format!(
+                        "\n## 🎯 Revisit development areas from {}\n\
+                         They haven't come up in recent notes. Consider touching on:\n{}\n",
+                        r.period, dev
+                    ));
+                }
+            }
+        }
+    }
+
+    // 8. Wins to acknowledge (existing).
+    s.push_str("\n## Wins to acknowledge\n");
+    if greens.is_empty() && blues.is_empty() {
+        s.push_str("_Nothing strongly positive in this window._\n");
+    } else {
+        for r in &blues { s.push_str(&format!("- 🔵 **{}**: {}\n", r.iso_week, r.notes.as_deref().unwrap_or("(no notes)"))); }
+        for r in &greens { s.push_str(&format!("- 🟢 {}: {}\n", r.iso_week, r.notes.as_deref().unwrap_or("(no notes)"))); }
+    }
+
+    // 9. Development areas from review (existing).
     if let Some(r) = &ctx.latest_review {
         if let Some(d) = &r.dev_areas_md {
             s.push_str(&format!("\n## Development areas from {}\n{}\n", r.period, d));
@@ -344,5 +484,60 @@ mod tests {
         let plan = generate_sync(&c, &input, 2000).unwrap();
         assert!(plan.output_md.contains("shipped auth refactor"));
         assert_eq!(plan.source, "template");
+    }
+
+    #[test]
+    fn wellbeing_prompt_fires_on_three_red_weeks() {
+        let (c, alice) = setup();
+        for (w, color) in [("2026-W14", "red"), ("2026-W15", "red"), ("2026-W16", "red")] {
+            week_ratings::upsert(&c, week_ratings::UpsertInput {
+                report_id: Some(alice), iso_week: w.into(),
+                color: color.into(), notes: None,
+            }, 1000).unwrap();
+        }
+        let input = GenerateInput {
+            kind: "one_on_one".into(), target_report_id: alice,
+            window_spec: WindowSpec::LastNWeeks { n: 10 },
+            source: "template".into(),
+        };
+        let plan = generate_sync(&c, &input, 2000).unwrap();
+        assert!(plan.output_md.contains("Wellbeing check"));
+    }
+
+    #[test]
+    fn sustained_momentum_fires_on_four_greens() {
+        let (c, alice) = setup();
+        for (w, color) in [("2026-W13", "green"), ("2026-W14", "green"), ("2026-W15", "green"), ("2026-W16", "green")] {
+            week_ratings::upsert(&c, week_ratings::UpsertInput {
+                report_id: Some(alice), iso_week: w.into(),
+                color: color.into(), notes: None,
+            }, 1000).unwrap();
+        }
+        let input = GenerateInput {
+            kind: "one_on_one".into(), target_report_id: alice,
+            window_spec: WindowSpec::LastNWeeks { n: 10 },
+            source: "template".into(),
+        };
+        let plan = generate_sync(&c, &input, 2000).unwrap();
+        assert!(plan.output_md.contains("Sustained momentum"));
+    }
+
+    #[test]
+    fn last_1on1_reflection_section_renders_when_notes_md_set() {
+        use crate::one_on_ones;
+        let (c, alice) = setup();
+        one_on_ones::create(&c, one_on_ones::NewInput {
+            report_id: alice, occurred_at: 1000,
+            agenda_md: Some("talked goals".into()),
+            notes_md: Some("Alex was tired. Wants more async days.".into()),
+        }, 0).unwrap();
+        let input = GenerateInput {
+            kind: "one_on_one".into(), target_report_id: alice,
+            window_spec: WindowSpec::LastNWeeks { n: 4 },
+            source: "template".into(),
+        };
+        let plan = generate_sync(&c, &input, 2000).unwrap();
+        assert!(plan.output_md.contains("From last 1:1"));
+        assert!(plan.output_md.contains("async days"));
     }
 }
