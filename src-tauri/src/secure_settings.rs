@@ -5,24 +5,50 @@
 use rusqlite::{Connection, OptionalExtension};
 
 pub const ANTHROPIC_KEY_SETTING: &str = "anthropic_api_key";
+pub const OLLAMA_URL_SETTING: &str = "ollama_url";
+pub const OLLAMA_MODEL_SETTING: &str = "ollama_model";
 
-pub fn get_anthropic_key(conn: &Connection) -> rusqlite::Result<Option<String>> {
+pub fn get_setting(conn: &Connection, key: &str) -> rusqlite::Result<Option<String>> {
     conn.query_row(
         "SELECT value FROM setting WHERE key = ?1",
-        [ANTHROPIC_KEY_SETTING],
+        [key],
         |r| r.get::<_, Option<String>>(0),
     )
     .optional()
     .map(|o| o.flatten())
 }
 
-pub fn set_anthropic_key(conn: &Connection, value: Option<&str>, now: i64) -> rusqlite::Result<()> {
+pub fn set_setting(conn: &Connection, key: &str, value: Option<&str>, now: i64) -> rusqlite::Result<()> {
     conn.execute(
         "INSERT INTO setting (key, value, updated_at) VALUES (?1, ?2, ?3)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-        rusqlite::params![ANTHROPIC_KEY_SETTING, value, now],
+        rusqlite::params![key, value, now],
     )?;
     Ok(())
+}
+
+pub fn get_anthropic_key(conn: &Connection) -> rusqlite::Result<Option<String>> {
+    get_setting(conn, ANTHROPIC_KEY_SETTING)
+}
+
+pub fn set_anthropic_key(conn: &Connection, value: Option<&str>, now: i64) -> rusqlite::Result<()> {
+    set_setting(conn, ANTHROPIC_KEY_SETTING, value, now)
+}
+
+pub fn get_ollama_url(conn: &Connection) -> rusqlite::Result<String> {
+    Ok(get_setting(conn, OLLAMA_URL_SETTING)?.unwrap_or_else(|| "http://localhost:11434".to_string()))
+}
+
+pub fn set_ollama_url(conn: &Connection, value: &str, now: i64) -> rusqlite::Result<()> {
+    set_setting(conn, OLLAMA_URL_SETTING, Some(value), now)
+}
+
+pub fn get_ollama_model(conn: &Connection) -> rusqlite::Result<Option<String>> {
+    get_setting(conn, OLLAMA_MODEL_SETTING)
+}
+
+pub fn set_ollama_model(conn: &Connection, value: Option<&str>, now: i64) -> rusqlite::Result<()> {
+    set_setting(conn, OLLAMA_MODEL_SETTING, value, now)
 }
 
 #[cfg(test)]

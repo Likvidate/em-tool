@@ -16,7 +16,10 @@ export const useGeneratedPlansStore = defineStore("generatedPlans", () => {
     generating.value = true;
     lastError.value = null;
     try {
-      const fn = input.source === "claude" ? plansApi.generateClaude : plansApi.generateTemplate;
+      let fn: (input: GeneratePlanInput) => Promise<GeneratedPlan>;
+      if (input.source === "claude") fn = plansApi.generateClaude;
+      else if (input.source === "ollama") fn = plansApi.generateOllama;
+      else fn = plansApi.generateTemplate;
       const plan = await fn(input);
       const cur = byReport.value[input.targetReportId] ?? [];
       byReport.value = { ...byReport.value, [input.targetReportId]: [plan, ...cur] };

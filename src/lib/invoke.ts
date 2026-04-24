@@ -8,6 +8,9 @@ import type { GeneratedPlan, GeneratePlanInput } from "../types/generated-plan";
 
 export type CommandError = { code: string; message: string };
 
+export type OllamaModelInfo = { name: string; size: number };
+export type OllamaSettings = { url: string; model: string | null };
+
 export class InvokeError extends Error {
   code: string;
   constructor(err: CommandError) {
@@ -91,6 +94,7 @@ export const plansApi = {
   list: (reportId: number) => invoke<GeneratedPlan[]>("list_generated_plans", { reportId }),
   generateTemplate: (input: GeneratePlanInput) => invoke<GeneratedPlan>("generate_plan_template", { input }),
   generateClaude: (input: GeneratePlanInput) => invoke<GeneratedPlan>("generate_plan_claude", { input }),
+  generateOllama: (input: GeneratePlanInput) => invoke<GeneratedPlan>("generate_plan_ollama", { input }),
   attachToMeeting: (planId: number, oneOnOneId: number) =>
     invoke<void>("attach_plan_to_meeting", { planId, oneOnOneId }),
 };
@@ -98,4 +102,11 @@ export const plansApi = {
 export const settingsApi = {
   hasApiKey: () => invoke<boolean>("get_api_key_set"),
   setApiKey: (value: string | null) => invoke<void>("set_api_key", { value }),
+};
+
+export const ollamaApi = {
+  settings: () => invoke<OllamaSettings>("get_ollama_settings"),
+  setUrl: (value: string) => invoke<void>("set_ollama_url", { value }),
+  setModel: (value: string | null) => invoke<void>("set_ollama_model", { value }),
+  listModels: () => invoke<OllamaModelInfo[]>("list_ollama_models"),
 };

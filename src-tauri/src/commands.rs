@@ -364,3 +364,103 @@ pub fn set_api_key(state: State<AppState>, value: Option<String>) -> Result<(), 
     let now = now_secs();
     db::with_conn(&state, |c| secure_settings::set_anthropic_key(c, value.as_deref(), now)).map_err(Into::into)
 }
+
+// --- Ollama settings + generation ---
+
+#[derive(Debug, serde::Serialize)]
+pub struct OllamaModelInfo {
+    pub name: String,
+    pub size: i64,
+}
+
+#[tauri::command]
+pub fn get_ollama_settings(state: State<AppState>)
+    -> Result<serde_json::Value, CommandError> {
+    db::with_conn(&state, |c| {
+        let url = secure_settings::get_ollama_url(c)?;
+        let model = secure_settings::get_ollama_model(c)?;
+        Ok(serde_json::json!({ "url": url, "model": model }))
+    }).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn set_ollama_url(state: State<AppState>, value: String) -> Result<(), CommandError> {
+    let now = now_secs();
+    db::with_conn(&state, |c| secure_settings::set_ollama_url(c, &value, now)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub fn set_ollama_model(state: State<AppState>, value: Option<String>) -> Result<(), CommandError> {
+    let now = now_secs();
+    db::with_conn(&state, |c| secure_settings::set_ollama_model(c, value.as_deref(), now)).map_err(Into::into)
+}
+
+#[tauri::command]
+pub async fn list_ollama_models(state: State<'_, AppState>)
+    -> Result<Vec<OllamaModelInfo>, CommandError> {
+    let url = {
+        let guard = state.inner.lock().unwrap();
+        let conn = guard.connection.as_ref().ok_or(CommandError {
+            code: "locked".into(), message: "vault is locked".into(),
+        })?;
+        secure_settings::get_ollama_url(conn).map_err(CommandError::from)?
+    };
+
+    let endpoint = format!("{}/api/tags", url.trim_end_matches('/'));
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| CommandError { code: "ollama_unreachable".into(), message: e.to_string() })?;
+
+    let resp = client.get(&endpoint).send().await
+        .map_err(|e| CommandError { code: "ollama_unreachable".into(), message: e.to_string() })?;
+    if !resp.status().is_success() {
+        return Err(CommandError {
+            code: "ollama_error".into(),
+            message: format!("status {}", resp.status()),
+        });
+    }
+    let json: serde_json::Value = resp.json().await
+        .map_err(|e| CommandError { code: "ollama_error".into(), message: e.to_string() })?;
+
+    let models = json["models"].as_array()
+        .ok_or(CommandError { code: "ollama_error".into(), message: "no models field".into() })?
+        .iter()
+        .filter_map(|m| Some(OllamaModelInfo {
+            name: m["name"].as_str()?.to_string(),
+            size: m["size"].as_i64().unwrap_or(0),
+        }))
+        .collect();
+    Ok(models)
+}
+
+#[tauri::command]
+pub async fn generate_plan_ollama(
+    state: State<'_, AppState>,
+    input: plan_generation::GenerateInput,
+) -> Result<plan_generation::GeneratedPlan, CommandError> {
+    let (url, model, prompt) = {
+        let guard = state.inner.lock().unwrap();
+        let conn = guard.connection.as_ref().ok_or(CommandError {
+            code: "locked".into(), message: "vault is locked".into(),
+        })?;
+        let url = secure_settings::get_ollama_url(conn).map_err(CommandError::from)?;
+        let model = secure_settings::get_ollama_model(conn).map_err(CommandError::from)?
+            .ok_or(CommandError {
+                code: "no_model".into(),
+                message: "no Ollama model selected in Settings".into(),
+            })?;
+        let prompt = plan_generation::gather_prompt(conn, &input).map_err(CommandError::from)?;
+        (url, model, prompt)
+    };
+
+    let output = plan_generation::call_ollama(&url, &model, &prompt).await
+        .map_err(CommandError::from)?;
+
+    let now = now_secs();
+    let guard = state.inner.lock().unwrap();
+    let conn = guard.connection.as_ref().ok_or(CommandError {
+        code: "locked".into(), message: "vault is locked (after ollama call)".into(),
+    })?;
+    plan_generation::save_ollama_plan(conn, &input, &prompt, &output, now).map_err(CommandError::from)
+}

@@ -440,6 +440,56 @@ pub fn save_claude_plan(
     get_plan(conn, id)?.ok_or(GenError::Sqlite(rusqlite::Error::QueryReturnedNoRows))
 }
 
+pub async fn call_ollama(base_url: &str, model: &str, prompt: &str) -> Result<String, GenError> {
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": false,
+        "keep_alive": 0
+    });
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(180))
+        .build()
+        .map_err(|e| GenError::Anthropic(e.to_string()))?;
+
+    let url = format!("{}/api/chat", base_url.trim_end_matches('/'));
+    let resp = client.post(&url)
+        .header("content-type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| GenError::Anthropic(format!("ollama request failed: {}", e)))?;
+
+    let status = resp.status();
+    let json: serde_json::Value = resp.json().await
+        .map_err(|e| GenError::Anthropic(format!("ollama response parse failed: {}", e)))?;
+    if !status.is_success() {
+        return Err(GenError::Anthropic(format!("ollama status {}: {}", status, json)));
+    }
+    let text = json["message"]["content"].as_str()
+        .ok_or_else(|| GenError::Anthropic(format!("ollama unexpected shape: {}", json)))?
+        .to_string();
+    Ok(text)
+}
+
+pub fn save_ollama_plan(
+    conn: &Connection,
+    input: &GenerateInput,
+    prompt: &str,
+    output: &str,
+    now: i64,
+) -> Result<GeneratedPlan, GenError> {
+    let window_spec_json = serde_json::to_string(&input.window_spec)?;
+    conn.execute(
+        "INSERT INTO generated_plan (kind, target_report_id, window_spec, source, prompt_md, output_md, created_at)
+         VALUES (?1, ?2, ?3, 'ollama', ?4, ?5, ?6)",
+        rusqlite::params![input.kind, input.target_report_id, window_spec_json, prompt, output, now],
+    )?;
+    let id = conn.last_insert_rowid();
+    get_plan(conn, id)?.ok_or(GenError::Sqlite(rusqlite::Error::QueryReturnedNoRows))
+}
+
 pub fn attach_to_meeting(conn: &Connection, plan_id: i64, one_on_one_id: i64) -> rusqlite::Result<()> {
     conn.execute(
         "UPDATE generated_plan SET saved_to_meeting_id = ?1 WHERE id = ?2",

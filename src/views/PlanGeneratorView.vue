@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useReportsStore } from "../stores/reports";
 import { useGeneratedPlansStore } from "../stores/generated-plans";
 import { useOneOnOnesStore } from "../stores/one-on-ones";
-import { settingsApi } from "../lib/invoke";
+import { settingsApi, ollamaApi } from "../lib/invoke";
 import type { PlanKind, WindowSpec, GeneratedPlan } from "../types/generated-plan";
 
 const route = useRoute();
@@ -26,6 +26,8 @@ const windowChoice = ref<
 const customFrom = ref("");
 const customTo = ref("");
 const hasApiKey = ref(false);
+const hasOllama = ref(false);
+const ollamaModel = ref<string | null>(null);
 const currentPlan = ref<GeneratedPlan | null>(null);
 const error = ref<string | null>(null);
 const showAttachMenu = ref(false);
@@ -50,7 +52,7 @@ function resolveWindow(): WindowSpec {
   }
 }
 
-async function doGenerate(source: "claude" | "template") {
+async function doGenerate(source: "claude" | "template" | "ollama") {
   if (!selectedReportId.value) return;
   error.value = null;
   try {
@@ -91,6 +93,18 @@ function loadHistoryPlan(plan: GeneratedPlan) {
 onMounted(async () => {
   if (!reports.loaded) await reports.load(false);
   hasApiKey.value = await settingsApi.hasApiKey();
+
+  try {
+    const s = await ollamaApi.settings();
+    ollamaModel.value = s.model;
+    if (s.model) {
+      const models = await ollamaApi.listModels();
+      hasOllama.value = models.some((m) => m.name === s.model);
+    }
+  } catch {
+    hasOllama.value = false;
+  }
+
   const routeId = route.params.reportId ? Number(route.params.reportId) : null;
   if (routeId && !Number.isNaN(routeId)) {
     selectedReportId.value = routeId;
@@ -225,6 +239,17 @@ watch(selectedReportId, async (id) => {
           {{ plans.generating ? "Generating…" : "Generate plan" }}
         </button>
         <button
+          v-if="hasOllama"
+          type="button"
+          class="btn btn-secondary"
+          :disabled="plans.generating || !selectedReportId"
+          @click="doGenerate('ollama')"
+        >
+          <span v-if="plans.generating" class="spinner"></span>
+          {{ plans.generating ? "Generating…" : "🦙 Generate with Ollama" }}
+          <span v-if="ollamaModel && !plans.generating" class="model-hint">({{ ollamaModel }})</span>
+        </button>
+        <button
           v-if="hasApiKey"
           type="button"
           class="btn btn-secondary"
@@ -247,7 +272,11 @@ watch(selectedReportId, async (id) => {
         <header class="output-head">
           <div class="output-meta">
             <span class="badge" :class="currentPlan.source">
-              {{ currentPlan.source === "claude" ? "✨ Claude" : "Template" }}
+              {{
+                currentPlan.source === "claude" ? "✨ Claude"
+                : currentPlan.source === "ollama" ? "🦙 Ollama"
+                : "Template"
+              }}
             </span>
             <span class="kind-tag">
               {{ currentPlan.kind === "one_on_one" ? "1:1 prep" : "Review prep" }}
@@ -310,7 +339,11 @@ watch(selectedReportId, async (id) => {
           <span class="h-kind">{{ p.kind === "one_on_one" ? "1:1" : "Review" }}</span>
           <span class="h-sep">·</span>
           <span class="h-source" :class="p.source">
-            {{ p.source === "claude" ? "✨ Claude" : "Template" }}
+            {{
+              p.source === "claude" ? "✨ Claude"
+              : p.source === "ollama" ? "🦙 Ollama"
+              : "Template"
+            }}
           </span>
           <span class="h-sep">·</span>
           <span class="h-ts">{{ formatTs(p.createdAt) }}</span>
@@ -419,10 +452,20 @@ watch(selectedReportId, async (id) => {
   color: var(--accent-strong);
   border-color: var(--border-accent);
 }
+.badge.ollama {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
 .badge.template {
   background: var(--surface-2);
   color: var(--text-dim);
   border-color: var(--border);
+}
+.model-hint {
+  margin-left: 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-mute);
 }
 .kind-tag {
   font-size: var(--fs-sm);
@@ -513,6 +556,7 @@ watch(selectedReportId, async (id) => {
 .h-sep { color: var(--text-mute); }
 .h-source { color: var(--text-dim); }
 .h-source.claude { color: var(--accent-strong); }
+.h-source.ollama { color: var(--text); }
 .h-ts { font-family: var(--font-mono); color: var(--text-mute); }
 .h-saved { color: var(--success); margin-left: auto; }
 </style>

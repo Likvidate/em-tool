@@ -56,6 +56,11 @@ pub fn run() {
             commands::attach_plan_to_meeting,
             commands::get_api_key_set,
             commands::set_api_key,
+            commands::get_ollama_settings,
+            commands::set_ollama_url,
+            commands::set_ollama_model,
+            commands::list_ollama_models,
+            commands::generate_plan_ollama,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

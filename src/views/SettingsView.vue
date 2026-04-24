@@ -2,7 +2,8 @@
 import { onMounted, ref } from "vue";
 import {
   settingsApi, weekRatingsApi, oneOnOnesApi,
-  actionItemsApi, reviewsApi,
+  actionItemsApi, reviewsApi, ollamaApi,
+  type OllamaModelInfo,
 } from "../lib/invoke";
 import { useReportsStore } from "../stores/reports";
 import ConfirmModal from "../components/ConfirmModal.vue";
@@ -20,8 +21,87 @@ const showClearConfirm = ref(false);
 const seeding = ref(false);
 const seedResult = ref<string | null>(null);
 
+// Ollama state
+const ollamaUrl = ref("http://localhost:11434");
+const ollamaModel = ref<string | null>(null);
+const ollamaModels = ref<OllamaModelInfo[]>([]);
+const ollamaReachable = ref(false);
+const ollamaSavingUrl = ref(false);
+const ollamaTesting = ref(false);
+const ollamaStatusMsg = ref<string | null>(null);
+const ollamaError = ref<string | null>(null);
+
 async function refresh() {
   hasKey.value = await settingsApi.hasApiKey();
+}
+
+async function loadOllamaSettings() {
+  try {
+    const s = await ollamaApi.settings();
+    ollamaUrl.value = s.url;
+    ollamaModel.value = s.model;
+  } catch (e: unknown) {
+    // best-effort — settings might not exist yet
+    ollamaError.value = e instanceof Error ? e.message : String(e);
+  }
+}
+
+async function saveOllamaUrl() {
+  if (!ollamaUrl.value.trim()) return;
+  ollamaSavingUrl.value = true;
+  ollamaError.value = null;
+  try {
+    await ollamaApi.setUrl(ollamaUrl.value.trim());
+    ollamaStatusMsg.value = "URL saved.";
+    setTimeout(() => { ollamaStatusMsg.value = null; }, 2000);
+  } catch (e: unknown) {
+    ollamaError.value = e instanceof Error ? e.message : String(e);
+  } finally {
+    ollamaSavingUrl.value = false;
+  }
+}
+
+async function testOllamaConnection() {
+  ollamaTesting.value = true;
+  ollamaError.value = null;
+  ollamaStatusMsg.value = null;
+  try {
+    const models = await ollamaApi.listModels();
+    ollamaModels.value = models;
+    ollamaReachable.value = true;
+    ollamaStatusMsg.value = `Reachable — ${models.length} model(s) available.`;
+  } catch (e: unknown) {
+    ollamaReachable.value = false;
+    ollamaModels.value = [];
+    ollamaError.value = "Not reachable — is Ollama running?";
+    // swallow underlying error details in the user-facing message
+    // but still surface exact for debugging via console
+    console.warn("Ollama test failed:", e);
+  } finally {
+    ollamaTesting.value = false;
+  }
+}
+
+async function changeOllamaModel(e: Event) {
+  const target = e.target as HTMLSelectElement;
+  const v = target.value || null;
+  ollamaError.value = null;
+  try {
+    await ollamaApi.setModel(v);
+    ollamaModel.value = v;
+  } catch (err: unknown) {
+    ollamaError.value = err instanceof Error ? err.message : String(err);
+  }
+}
+
+async function clearOllamaModel() {
+  ollamaError.value = null;
+  try {
+    await ollamaApi.setModel(null);
+    ollamaModel.value = null;
+  } catch (e: unknown) {
+    ollamaError.value = e instanceof Error ? e.message : String(e);
+  }
 }
 
 async function saveKey() {
@@ -141,7 +221,10 @@ function formatNextDate(daysAhead: number): string {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
 
-onMounted(refresh);
+onMounted(async () => {
+  await refresh();
+  await loadOllamaSettings();
+});
 </script>
 
 <template>
@@ -197,6 +280,82 @@ onMounted(refresh);
 
       <div v-if="saveError" class="error-banner">{{ saveError }}</div>
       <div v-if="justSaved" class="success-banner">API key saved.</div>
+    </section>
+
+    <section class="card card-body">
+      <h3>Ollama (local LLM)</h3>
+      <p class="sub">
+        Optional: run plans locally through
+        <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a>.
+        No data leaves your machine. Model unloads after each request
+        (<code>keep_alive: 0</code>) so it doesn't hold RAM.
+      </p>
+
+      <div class="status-line">
+        <span
+          v-if="ollamaReachable && ollamaModel"
+          class="badge badge-accent"
+        >✓ Ready</span>
+        <span
+          v-else-if="ollamaReachable"
+          class="badge"
+        >Reachable — pick a model</span>
+        <span v-else class="badge">Not configured</span>
+      </div>
+
+      <div class="input-row">
+        <input
+          v-model="ollamaUrl"
+          type="text"
+          class="field-input key-input"
+          placeholder="http://localhost:11434"
+          :disabled="ollamaSavingUrl"
+        />
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="ollamaSavingUrl || !ollamaUrl.trim()"
+          @click="saveOllamaUrl"
+        >
+          {{ ollamaSavingUrl ? "Saving…" : "Save URL" }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          :disabled="ollamaTesting"
+          @click="testOllamaConnection"
+        >
+          {{ ollamaTesting ? "Testing…" : "Test connection" }}
+        </button>
+      </div>
+
+      <div v-if="ollamaModels.length > 0" class="input-row" style="margin-top: 12px;">
+        <select
+          class="field-input key-input"
+          :value="ollamaModel ?? ''"
+          @change="changeOllamaModel"
+        >
+          <option value="">— select a model —</option>
+          <option
+            v-for="m in ollamaModels"
+            :key="m.name"
+            :value="m.name"
+          >
+            {{ m.name }}
+          </option>
+        </select>
+        <button
+          type="button"
+          class="btn btn-danger"
+          :disabled="!ollamaModel"
+          @click="clearOllamaModel"
+        >
+          Clear model
+        </button>
+      </div>
+
+      <div v-if="ollamaError" class="error-banner">{{ ollamaError }}</div>
+      <div v-if="ollamaStatusMsg" class="success-banner">{{ ollamaStatusMsg }}</div>
     </section>
 
     <section class="card card-body">

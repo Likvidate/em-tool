@@ -1,5 +1,5 @@
 export type PlanKind = "one_on_one" | "review";
-export type PlanSource = "claude" | "template";
+export type PlanSource = "claude" | "template" | "ollama";
 
 export type WindowSpec =
   | { type: "since_last_one_on_one" }

@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 
-pub const CURRENT_SCHEMA_VERSION: i64 = 2;
+pub const CURRENT_SCHEMA_VERSION: i64 = 3;
 
 pub fn run(conn: &Connection) -> rusqlite::Result<()> {
     let version = current_version(conn)?;
@@ -9,6 +9,9 @@ pub fn run(conn: &Connection) -> rusqlite::Result<()> {
     }
     if version < 2 {
         apply_v2(conn)?;
+    }
+    if version < 3 {
+        apply_v3(conn)?;
     }
     Ok(())
 }
@@ -119,6 +122,28 @@ fn apply_v2(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(r#"
         ALTER TABLE performance_review ADD COLUMN notes_md TEXT;
         UPDATE app_meta SET schema_version = 2 WHERE id = 1;
+    "#)
+}
+
+fn apply_v3(conn: &Connection) -> rusqlite::Result<()> {
+    // Widen generated_plan.source CHECK to include 'ollama'. SQLite can't
+    // drop a CHECK constraint in place, so copy-rename.
+    conn.execute_batch(r#"
+        CREATE TABLE generated_plan_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind TEXT NOT NULL CHECK (kind IN ('one_on_one','review')),
+            target_report_id INTEGER NOT NULL REFERENCES report(id) ON DELETE CASCADE,
+            window_spec TEXT NOT NULL,
+            source TEXT NOT NULL CHECK (source IN ('claude','template','ollama')),
+            prompt_md TEXT,
+            output_md TEXT NOT NULL,
+            saved_to_meeting_id INTEGER REFERENCES one_on_one(id) ON DELETE SET NULL,
+            created_at INTEGER NOT NULL
+        );
+        INSERT INTO generated_plan_new SELECT * FROM generated_plan;
+        DROP TABLE generated_plan;
+        ALTER TABLE generated_plan_new RENAME TO generated_plan;
+        UPDATE app_meta SET schema_version = 3 WHERE id = 1;
     "#)
 }
 
@@ -240,6 +265,18 @@ mod tests {
         // Now run() should notice version=1 and apply v2
         run(&c).unwrap();
         let v: i64 = c.query_row("SELECT schema_version FROM app_meta WHERE id = 1", [], |r| r.get(0)).unwrap();
-        assert_eq!(v, 2);
+        assert_eq!(v, 3);
+    }
+
+    #[test]
+    fn v3_allows_ollama_source() {
+        let c = open_in_memory();
+        run(&c).unwrap();
+        c.execute("INSERT INTO report (name, created_at) VALUES ('A', 0)", []).unwrap();
+        c.execute(
+            "INSERT INTO generated_plan (kind, target_report_id, window_spec, source, output_md, created_at) \
+             VALUES ('one_on_one', 1, '{}', 'ollama', 'out', 0)",
+            [],
+        ).unwrap();
     }
 }
